@@ -1,4 +1,4 @@
-"""Create Fase 0 business, user, membership, and audit tables.
+"""Create business, user, membership, and audit tables.
 
 Revision ID: 20260727_0001
 Revises:

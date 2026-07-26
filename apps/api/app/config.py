@@ -1,3 +1,4 @@
+from decimal import Decimal
 from functools import lru_cache
 
 from pydantic import Field, model_validator
@@ -28,6 +29,19 @@ class Settings(BaseSettings):
     s3_secret_key: str = "umkm_minio_password"
     s3_bucket: str = "umkm-documents"
     s3_region: str = "us-east-1"
+
+    max_upload_bytes: int = 10 * 1024 * 1024
+    amount_tolerance: Decimal = Decimal("1.00")
+    max_future_days: int = 7
+    minimum_extraction_confidence: Decimal = Decimal("0.75")
+    enqueue_document_tasks: bool = True
+
+    ai_provider: str = "mock"
+    ai_http_endpoint: str | None = None
+    ai_http_api_key: str | None = None
+    ai_http_model: str = "finance-document-extractor"
+    extraction_prompt_version: str = "finance-inbox-v1"
+    extraction_schema_version: str = "document-v1"
 
     jwt_secret: str = "change-this-local-demo-secret-at-least-32-chars"
     jwt_algorithm: str = "HS256"

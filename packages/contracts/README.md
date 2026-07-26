@@ -1,5 +1,5 @@
 # Contracts
 
-Direktori ini disiapkan untuk kontrak OpenAPI/generated client pada MVP 1. Fase 0
-menggunakan schema OpenAPI FastAPI sebagai sumber kontrak, tanpa menduplikasi tipe
-domain di frontend.
+This directory is reserved for generated API contracts. FastAPI's OpenAPI schema
+is currently the source of truth, avoiding a second handwritten set of domain
+types.

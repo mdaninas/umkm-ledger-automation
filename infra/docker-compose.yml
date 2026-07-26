@@ -99,6 +99,16 @@ services:
       S3_SECRET_KEY: ${S3_SECRET_KEY:-umkm_minio_password}
       S3_BUCKET: ${S3_BUCKET:-umkm-documents}
       S3_REGION: ${S3_REGION:-us-east-1}
+      MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-10485760}
+      AMOUNT_TOLERANCE: ${AMOUNT_TOLERANCE:-1.00}
+      MAX_FUTURE_DAYS: ${MAX_FUTURE_DAYS:-7}
+      MINIMUM_EXTRACTION_CONFIDENCE: ${MINIMUM_EXTRACTION_CONFIDENCE:-0.75}
+      AI_PROVIDER: ${AI_PROVIDER:-mock}
+      AI_HTTP_ENDPOINT: ${AI_HTTP_ENDPOINT:-}
+      AI_HTTP_API_KEY: ${AI_HTTP_API_KEY:-}
+      AI_HTTP_MODEL: ${AI_HTTP_MODEL:-finance-document-extractor}
+      EXTRACTION_PROMPT_VERSION: ${EXTRACTION_PROMPT_VERSION:-finance-inbox-v1}
+      EXTRACTION_SCHEMA_VERSION: ${EXTRACTION_SCHEMA_VERSION:-document-v1}
       JWT_SECRET: ${JWT_SECRET:-change-this-local-demo-secret-at-least-32-chars}
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-480}
@@ -161,7 +171,7 @@ services:
           "celery -A app.worker.celery_app inspect ping --timeout 2 | grep -q pong",
         ]
       interval: 10s
-      timeout: 5s
+      timeout: 15s
       retries: 20
     restart: unless-stopped
 

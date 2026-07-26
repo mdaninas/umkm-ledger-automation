@@ -15,6 +15,7 @@ def settings(tmp_path: Path) -> Settings:
         environment="test",
         database_url=f"sqlite+pysqlite:///{tmp_path / 'test.db'}",
         healthcheck_externals=False,
+        enqueue_document_tasks=False,
         jwt_secret="test-only-secret-with-enough-entropy",
     )
 

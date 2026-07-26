@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApiError, login } from "@/lib/api";
+import { ApiError, login, uploadDocument } from "@/lib/api";
 
 describe("API auth client", () => {
   afterEach(() => {
@@ -61,5 +61,32 @@ describe("API auth client", () => {
     await expect(login("owner@kopiarunika.demo", "WrongPass123!")).rejects.toEqual(
       new ApiError("Email atau password tidak cocok.", 401),
     );
+  });
+
+  it("mengunggah dokumen sebagai multipart tanpa mengatur content type manual", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: "document-id",
+          original_filename: "receipt.pdf",
+          status: "QUEUED",
+        }),
+        { status: 202, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("crypto", { randomUUID: () => "upload-request-0001" });
+
+    await uploadDocument(
+      "access-token",
+      new File(["%PDF-1.4"], "receipt.pdf", { type: "application/pdf" }),
+    );
+
+    const options = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(options.body).toBeInstanceOf(FormData);
+    const headers = options.headers as Headers;
+    expect(headers.get("Authorization")).toBe("Bearer access-token");
+    expect(headers.has("Content-Type")).toBe(false);
+    expect(headers.get("Idempotency-Key")).toBe("upload-request-0001");
   });
 });

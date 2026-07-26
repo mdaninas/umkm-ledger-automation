@@ -8,12 +8,13 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import auth
+from app.api import auth, documents, finance
 from app.api import health as health_routes
 from app.config import Settings, get_settings
 from app.database import Database
 from app.models import Base
 from app.observability import configure_logging
+from app.storage import build_storage
 
 logger = logging.getLogger("app.http")
 
@@ -26,6 +27,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         database = Database(app_settings.database_url)
         app.state.database = database
+        app.state.storage = build_storage(app_settings)
         if app_settings.environment.lower() == "test":
             Base.metadata.create_all(database.engine)
         try:
@@ -36,7 +38,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application = FastAPI(
         title=app_settings.app_name,
         version="0.1.0",
-        description="Foundation API untuk UMKM Finance Autopilot.",
+        description="Document intake, review, approval, and ledger API for UMKM finance.",
         lifespan=lifespan,
     )
     application.state.settings = app_settings
@@ -45,7 +47,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_origins=[app_settings.web_origin],
         allow_credentials=False,
         allow_methods=["GET", "POST", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type", "X-Correlation-ID"],
+        allow_headers=[
+            "Authorization",
+            "Content-Type",
+            "Idempotency-Key",
+            "X-Correlation-ID",
+        ],
         expose_headers=["X-Correlation-ID"],
     )
 
@@ -89,6 +96,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         prefix=f"{app_settings.api_v1_prefix}/health",
     )
     application.include_router(auth.router, prefix=app_settings.api_v1_prefix)
+    application.include_router(documents.router, prefix=app_settings.api_v1_prefix)
+    application.include_router(finance.router, prefix=app_settings.api_v1_prefix)
 
     @application.get("/")
     def root() -> dict[str, str]:

@@ -2,270 +2,261 @@
 
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useSyncExternalStore } from "react";
-import {
-  getHealth,
-  getProfile,
-  HealthComponent,
-  sessionStorage,
-} from "@/lib/api";
+import { AppShell, useSessionToken } from "@/components/app-shell";
+import { getDashboardSummary, getHealth } from "@/lib/api";
 
-const componentLabels: Record<string, string> = {
-  api: "API",
-  database: "PostgreSQL",
-  redis: "Redis",
-  object_storage: "MinIO",
-  worker: "Celery worker",
-};
-
-const subscribeToSession = () => () => undefined;
-
-function HealthBadge({ component }: { component: HealthComponent }) {
-  const healthy = component.status === "healthy";
-  return (
-    <span
-      className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold ${
-        healthy
-          ? "bg-[#e8f5ce] text-[#35580e]"
-          : component.status === "skipped"
-            ? "bg-[#ecebe6] text-[#62645f]"
-            : "bg-[#fff0eb] text-[#8a321c]"
-      }`}
-    >
-      <span aria-hidden="true">{healthy ? "✓" : component.status === "skipped" ? "–" : "!"}</span>
-      {healthy ? "Sehat" : component.status === "skipped" ? "Dilewati" : "Perlu perhatian"}
-    </span>
-  );
-}
+const rupiah = new Intl.NumberFormat("id-ID", {
+  style: "currency",
+  currency: "IDR",
+  maximumFractionDigits: 0,
+});
 
 export default function DashboardPage() {
-  const router = useRouter();
-  const token = useSyncExternalStore(
-    subscribeToSession,
-    sessionStorage.getToken,
-    () => null,
-  );
-
-  useEffect(() => {
-    if (!token) router.replace("/login");
-  }, [router, token]);
-
-  const profile = useQuery({
-    queryKey: ["session-profile"],
-    queryFn: () => getProfile(token!),
+  const token = useSessionToken();
+  const summary = useQuery({
+    queryKey: ["dashboard-summary"],
+    queryFn: () => getDashboardSummary(token!),
     enabled: Boolean(token),
-    retry: false,
   });
   const health = useQuery({
     queryKey: ["system-health"],
     queryFn: getHealth,
-    refetchInterval: 15_000,
+    refetchInterval: 30_000,
   });
 
-  useEffect(() => {
-    if (profile.isError) {
-      sessionStorage.clear();
-      router.replace("/login");
-    }
-  }, [profile.isError, router]);
+  const income = Number(summary.data?.posted_income ?? 0);
+  const expenses = Number(summary.data?.posted_expenses ?? 0);
+  const comparisonBase = Math.max(income, expenses, 1);
+  const net = income - expenses;
+  const healthy = health.data?.status === "healthy";
 
-  function logout() {
-    sessionStorage.clear();
-    router.replace("/login");
-  }
-
-  if (profile.isPending) {
-    return (
-      <main className="grid min-h-screen place-items-center p-6">
-        <div className="text-center" role="status">
-          <div className="mx-auto mb-4 h-9 w-9 animate-spin rounded-full border-4 border-[#dbe6c4] border-t-[#153e2d]" />
-          <p className="font-semibold">Menyiapkan ruang kerja…</p>
-        </div>
-      </main>
-    );
-  }
-
-  if (!token || !profile.data) return null;
-
-  const healthyCount = health.data
-    ? Object.values(health.data.components).filter((item) => item.status === "healthy").length
-    : 0;
-  const totalComponents = health.data ? Object.keys(health.data.components).length : 5;
+  const balances = [
+    {
+      label: "Kas",
+      value: summary.data ? rupiah.format(Number(summary.data.cash_balance)) : "—",
+    },
+    {
+      label: "Bank",
+      value: summary.data ? rupiah.format(Number(summary.data.bank_balance)) : "—",
+    },
+    {
+      label: "Pendapatan tercatat",
+      value: summary.data ? rupiah.format(income) : "—",
+    },
+    {
+      label: "Beban tercatat",
+      value: summary.data ? rupiah.format(expenses) : "—",
+    },
+  ];
 
   return (
-    <main className="min-h-screen bg-[#f7f5ef]">
-      <header className="border-b border-[#dcd8cd] bg-white/80 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
-          <Link className="flex items-center gap-3" href="/dashboard">
-            <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#153e2d] font-black text-[#c8ef78]">
-              KA
-            </span>
-            <div>
-              <p className="font-bold leading-5">{profile.data.business.name}</p>
-              <p className="text-xs text-[#718078]">Finance Autopilot</p>
-            </div>
-          </Link>
-          <div className="flex items-center gap-4">
-            <div className="hidden text-right sm:block">
-              <p className="text-sm font-semibold">{profile.data.user.display_name}</p>
-              <p className="text-xs capitalize text-[#718078]">{profile.data.role}</p>
-            </div>
-            <button
-              className="rounded-xl border border-[#d2cec2] bg-white px-4 py-2 text-sm font-semibold transition hover:bg-[#f4f2ec]"
-              onClick={logout}
-              type="button"
-            >
-              Keluar
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <div className="mx-auto max-w-7xl px-5 py-10 sm:px-8 sm:py-14">
-        <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
+    <AppShell>
+      <main className="mx-auto max-w-[1240px] px-5 py-7 sm:px-8 sm:py-9 xl:px-10">
+        <header className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
           <div>
-            <p className="text-sm font-bold uppercase tracking-[0.2em] text-[#708269]">
-              Foundation console
-            </p>
-            <h1 className="mt-3 max-w-3xl text-4xl font-semibold tracking-[-0.045em] sm:text-5xl">
-              Fondasi aman sebelum automation bekerja.
+            <h1 className="text-2xl font-semibold tracking-[-0.03em] sm:text-[28px]">
+              Ringkasan
             </h1>
-            <p className="mt-4 max-w-2xl text-lg leading-8 text-[#65716b]">
-              Login demo, tenant isolation, audit, database migration, dan layanan lokal
-              sudah memiliki tempatnya. Fitur dokumen sengaja menunggu MVP 1.
+            <p className="mt-1.5 text-sm text-[#69716c]">
+              Posisi keuangan berdasarkan jurnal yang sudah diposting.
             </p>
           </div>
-          <div className="rounded-2xl border border-[#d8d2c2] bg-white px-5 py-4">
-            <p className="text-xs font-bold uppercase tracking-wider text-[#718078]">
-              Bisnis aktif
-            </p>
-            <p className="mt-1 font-bold">{profile.data.business.name}</p>
-            <p className="text-sm text-[#718078]">
-              {profile.data.business.currency} · {profile.data.business.timezone}
-            </p>
+          <div className="flex items-center gap-2">
+            <Link className="secondary-button" href="/approvals">
+              Buka approval
+            </Link>
+            <Link className="primary-button" href="/inbox">
+              <UploadIcon />
+              Unggah dokumen
+            </Link>
           </div>
-        </div>
+        </header>
 
-        <section className="mt-11 grid gap-5 lg:grid-cols-[1.45fr_0.75fr]">
-          <div className="rounded-[1.75rem] border border-[#d8d2c2] bg-white p-6 sm:p-8">
-            <div className="flex flex-wrap items-center justify-between gap-4">
+        <section className="app-card mt-7 overflow-hidden">
+          <div className="flex items-center justify-between border-b border-[#e3e4e1] px-5 py-4 sm:px-6">
+            <div>
+              <h2 className="text-sm font-semibold">Posisi keuangan</h2>
+              <p className="mt-0.5 text-xs text-[#777e79]">Nilai jurnal final</p>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-[#69716c]">
+              <span
+                className={`status-dot ${
+                  healthy ? "text-[#2d9169]" : "text-[#bd7a20]"
+                }`}
+              />
+              {health.isPending
+                ? "Memeriksa sistem"
+                : healthy
+                  ? "Data sinkron"
+                  : "Sistem terbatas"}
+            </div>
+          </div>
+          <div className="grid sm:grid-cols-2 xl:grid-cols-4">
+            {balances.map((item, index) => (
+              <div
+                className={`px-5 py-5 sm:px-6 ${
+                  index > 0 ? "border-t border-[#e3e4e1] sm:border-l" : ""
+                } ${index === 2 ? "sm:border-t xl:border-t-0" : ""}`}
+                key={item.label}
+              >
+                <p className="text-xs text-[#69716c]">{item.label}</p>
+                <p className="tabular-nums mt-2 truncate text-xl font-semibold tracking-[-0.025em]">
+                  {item.value}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(300px,0.55fr)]">
+          <article className="app-card p-5 sm:p-6">
+            <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-sm font-bold text-[#68776f]">Kesiapan layanan</p>
-                <p className="mt-1 text-3xl font-semibold tracking-tight">
-                  {health.isPending ? "Memeriksa…" : `${healthyCount}/${totalComponents} sehat`}
+                <h2 className="text-sm font-semibold">Pendapatan dan beban</h2>
+                <p className="mt-1 text-xs text-[#777e79]">
+                  Perbandingan seluruh jurnal final
                 </p>
               </div>
               <span
-                className={`rounded-full px-4 py-2 text-sm font-bold ${
-                  health.data?.status === "healthy"
-                    ? "bg-[#e8f5ce] text-[#35580e]"
-                    : "bg-[#fff0eb] text-[#8a321c]"
+                className={`rounded-md px-2 py-1 text-xs font-medium ${
+                  net >= 0
+                    ? "bg-[#e8f3ed] text-[#176846]"
+                    : "bg-[#f8eae7] text-[#963d32]"
                 }`}
               >
-                {health.data?.status === "healthy" ? "Siap digunakan" : "Pemeriksaan berjalan"}
+                Neto {summary.data ? rupiah.format(net) : "—"}
               </span>
             </div>
 
-            {health.isError ? (
-              <div
-                className="mt-6 rounded-2xl border border-[#e8aa97] bg-[#fff3ef] p-4 text-[#8a321c]"
-                role="alert"
-              >
-                Health API belum dapat dijangkau. Jalankan seluruh stack dan muat ulang
-                halaman ini.
-              </div>
-            ) : (
-              <div className="mt-7 grid gap-3 sm:grid-cols-2">
-                {health.data
-                  ? Object.entries(health.data.components).map(([name, component]) => (
-                      <div
-                        className="flex items-center justify-between gap-4 rounded-2xl border border-[#e2dfd6] bg-[#fbfaf7] p-4"
-                        key={name}
-                      >
-                        <div>
-                          <p className="font-semibold">{componentLabels[name] ?? name}</p>
-                          <p className="mt-0.5 text-xs text-[#718078]">
-                            {component.latency_ms === null
-                              ? "Tidak diukur"
-                              : `${component.latency_ms} ms`}
-                          </p>
-                        </div>
-                        <HealthBadge component={component} />
-                      </div>
-                    ))
-                  : Array.from({ length: 4 }).map((_, index) => (
-                      <div
-                        className="h-[78px] animate-pulse rounded-2xl bg-[#efede6]"
-                        key={index}
-                      />
-                    ))}
-              </div>
-            )}
-          </div>
+            <div className="mt-8 space-y-6">
+              <ComparisonBar
+                label="Pendapatan"
+                value={income}
+                width={(income / comparisonBase) * 100}
+              />
+              <ComparisonBar
+                label="Beban"
+                tone="expense"
+                value={expenses}
+                width={(expenses / comparisonBase) * 100}
+              />
+            </div>
 
-          <aside className="rounded-[1.75rem] bg-[#153e2d] p-7 text-white sm:p-8">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#c8ef78]">
-              Batas fase
-            </p>
-            <h2 className="mt-4 text-2xl font-semibold tracking-tight">
-              Belum ada tindakan finansial.
-            </h2>
-            <p className="mt-3 leading-7 text-white/65">
-              Fase 0 hanya menyiapkan keamanan dan operasional. Upload, AI extraction,
-              dan posting jurnal akan dimulai setelah exit gate disetujui.
-            </p>
-            <div className="mt-8 border-t border-white/15 pt-6">
-              <p className="text-sm font-semibold">Identitas sesi</p>
-              <dl className="mt-4 space-y-3 text-sm">
-                <div className="flex justify-between gap-4">
-                  <dt className="text-white/55">Role</dt>
-                  <dd className="capitalize">{profile.data.role}</dd>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <dt className="text-white/55">Currency</dt>
-                  <dd>{profile.data.business.currency}</dd>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <dt className="text-white/55">Environment</dt>
-                  <dd className="capitalize">{health.data?.environment ?? "—"}</dd>
-                </div>
-              </dl>
+            <div className="mt-8 border-t border-[#e3e4e1] pt-4 text-xs leading-5 text-[#69716c]">
+              Hanya transaksi yang sudah ditinjau dan diposting yang dihitung.
+            </div>
+          </article>
+
+          <aside className="app-card overflow-hidden">
+            <div className="border-b border-[#e3e4e1] px-5 py-4">
+              <h2 className="text-sm font-semibold">Perlu perhatian</h2>
+            </div>
+            <div className="px-5 py-5">
+              <p className="tabular-nums text-4xl font-semibold tracking-[-0.04em]">
+                {summary.data?.needs_review_count ?? "—"}
+              </p>
+              <p className="mt-1 text-sm text-[#69716c]">
+                dokumen menunggu peninjauan
+              </p>
+              <Link
+                className="mt-5 flex items-center justify-between border-t border-[#e3e4e1] pt-4 text-sm font-medium text-[#174d3a]"
+                href="/inbox?status=NEEDS_REVIEW"
+              >
+                Tinjau dokumen
+                <span aria-hidden="true">→</span>
+              </Link>
             </div>
           </aside>
         </section>
 
-        <section className="mt-5 grid gap-5 sm:grid-cols-3">
-          {[
-            {
-              label: "Tenant boundary",
-              value: "Aktif",
-              detail: "Business dan role diverifikasi dari membership database.",
-            },
-            {
-              label: "Audit foundation",
-              value: "Append-only",
-              detail: "Login demo menghasilkan event dengan correlation ID.",
-            },
-            {
-              label: "Workflow finansial",
-              value: "Belum aktif",
-              detail: "Menunggu persetujuan untuk memulai scope MVP 1.",
-            },
-          ].map((card) => (
-            <article
-              className="rounded-3xl border border-[#d8d2c2] bg-white p-6"
-              key={card.label}
-            >
-              <p className="text-xs font-bold uppercase tracking-wider text-[#718078]">
-                {card.label}
+        <section className="app-card mt-5 overflow-hidden">
+          <div className="flex items-center justify-between border-b border-[#e3e4e1] px-5 py-4 sm:px-6">
+            <div>
+              <h2 className="text-sm font-semibold">Aktivitas pembukuan</h2>
+              <p className="mt-0.5 text-xs text-[#777e79]">
+                Status dokumen dan jurnal saat ini
               </p>
-              <p className="mt-3 text-2xl font-semibold">{card.value}</p>
-              <p className="mt-2 text-sm leading-6 text-[#65716b]">{card.detail}</p>
-            </article>
-          ))}
+            </div>
+            <Link className="text-xs font-medium text-[#174d3a]" href="/inbox">
+              Lihat semua
+            </Link>
+          </div>
+          <div className="divide-y divide-[#e3e4e1]">
+            <ActivityRow
+              description="Menunggu koreksi atau konfirmasi owner"
+              label="Dokumen perlu ditinjau"
+              value={summary.data?.needs_review_count ?? "—"}
+            />
+            <ActivityRow
+              description="Jurnal sudah disiapkan tetapi belum final"
+              label="Draft jurnal"
+              value={summary.data?.draft_journal_count ?? "—"}
+            />
+            <ActivityRow
+              description="Jurnal seimbang dan sudah tercatat"
+              label="Jurnal terposting"
+              value={summary.data?.posted_journal_count ?? "—"}
+            />
+          </div>
         </section>
+      </main>
+    </AppShell>
+  );
+}
+
+function ComparisonBar({
+  label,
+  value,
+  width,
+  tone = "income",
+}: {
+  label: string;
+  value: number;
+  width: number;
+  tone?: "income" | "expense";
+}) {
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between gap-4 text-sm">
+        <span className="text-[#5f6762]">{label}</span>
+        <span className="tabular-nums font-medium">{rupiah.format(value)}</span>
       </div>
-    </main>
+      <div className="h-2 overflow-hidden rounded-sm bg-[#eceeeb]">
+        <div
+          className={`h-full rounded-sm ${
+            tone === "income" ? "bg-[#367b61]" : "bg-[#a8aaa5]"
+          }`}
+          style={{ width: `${width}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function ActivityRow({
+  label,
+  description,
+  value,
+}: {
+  label: string;
+  description: string;
+  value: string | number;
+}) {
+  return (
+    <div className="grid gap-2 px-5 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-6">
+      <div>
+        <p className="text-sm font-medium">{label}</p>
+        <p className="mt-0.5 text-xs text-[#777e79]">{description}</p>
+      </div>
+      <p className="tabular-nums text-lg font-semibold">{value}</p>
+    </div>
+  );
+}
+
+function UploadIcon() {
+  return (
+    <svg aria-hidden="true" fill="none" height="16" viewBox="0 0 24 24" width="16">
+      <path d="M12 16V4m0 0L7 9m5-5 5 5M5 15v5h14v-5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
+    </svg>
   );
 }

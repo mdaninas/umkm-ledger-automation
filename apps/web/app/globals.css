@@ -1,12 +1,18 @@
 @import "tailwindcss";
 
 :root {
-  --ink: #14241d;
-  --paper: #f7f5ef;
-  --cream: #eee9db;
-  --forest: #153e2d;
-  --lime: #c8ef78;
-  --terracotta: #d96c48;
+  --ink: #202522;
+  --muted: #69716c;
+  --canvas: #f7f7f5;
+  --surface: #ffffff;
+  --surface-soft: #f1f2ef;
+  --line: #dfe1dd;
+  --line-strong: #cfd3cd;
+  --forest: #174d3a;
+  --green: #167451;
+  --green-soft: #e8f3ed;
+  --danger: #a13e32;
+  --warning: #8a6116;
 }
 
 * {
@@ -14,34 +20,179 @@
 }
 
 html {
-  background: var(--paper);
+  background: var(--canvas);
 }
 
 body {
   min-height: 100vh;
   margin: 0;
   color: var(--ink);
-  background:
-    radial-gradient(circle at 12% 8%, rgb(200 239 120 / 18%), transparent 28rem),
-    var(--paper);
+  background: var(--canvas);
   font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Inter, "Segoe UI", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
     sans-serif;
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
+}
+
+button,
+a,
+label {
+  -webkit-tap-highlight-color: transparent;
 }
 
 button:focus-visible,
 input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
 a:focus-visible {
-  outline: 3px solid #8fbf38;
-  outline-offset: 3px;
+  outline: 2px solid rgb(22 116 81 / 0.55);
+  outline-offset: 2px;
+}
+
+.app-card {
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  background: var(--surface);
+}
+
+.app-card-interactive {
+  transition:
+    border-color 140ms ease,
+    background 140ms ease;
+}
+
+.app-card-interactive:hover {
+  border-color: var(--line-strong);
+  background: #fbfcfa;
+}
+
+.eyebrow {
+  color: var(--muted);
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.primary-button {
+  display: inline-flex;
+  min-height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid var(--forest);
+  border-radius: 0.5rem;
+  background: var(--forest);
+  padding: 0.55rem 0.9rem;
+  color: #fff;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  transition:
+    border-color 140ms ease,
+    background 140ms ease;
+}
+
+.primary-button:hover {
+  border-color: #0e3b2b;
+  background: #0e3b2b;
+}
+
+.primary-button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.secondary-button {
+  display: inline-flex;
+  min-height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 0.5rem;
+  background: #fff;
+  padding: 0.55rem 0.9rem;
+  color: var(--ink);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  transition:
+    border-color 140ms ease,
+    background 140ms ease;
+}
+
+.secondary-button:hover {
+  border-color: #b9bdb7;
+  background: var(--surface-soft);
+}
+
+.form-control {
+  width: 100%;
+  min-height: 2.625rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 0.5rem;
+  background: #fff;
+  padding: 0.6rem 0.75rem;
+  color: var(--ink);
+  font-size: 0.875rem;
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.form-control:hover {
+  border-color: #aeb4ad;
+}
+
+.form-control:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgb(22 116 81 / 0.1);
+  outline: none;
+}
+
+.form-control:disabled {
+  cursor: not-allowed;
+  background: #f1f2ef;
+  color: #777e79;
+}
+
+.tech-grid {
+  background-image: none;
+}
+
+.status-dot {
+  display: inline-block;
+  width: 0.4375rem;
+  height: 0.4375rem;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
 }
 
 ::selection {
-  color: white;
-  background: var(--forest);
+  color: #fff;
+  background: var(--green);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: #bfc3bd;
+  background-clip: padding-box;
 }

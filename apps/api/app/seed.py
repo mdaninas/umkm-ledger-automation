@@ -6,12 +6,36 @@ from sqlalchemy.orm import Session
 from app.audit import record_audit_event
 from app.config import Settings, get_settings
 from app.database import Database
-from app.models import ActorType, Business, Membership, Role, User
+from app.models import (
+    AccountType,
+    ActorType,
+    Business,
+    LedgerAccount,
+    Membership,
+    Role,
+    User,
+)
 from app.security import hash_password
 
 DEMO_BUSINESS_ID = uuid.UUID("d8f899b6-6dd9-4a91-82fe-d97e8076c9cf")
 DEMO_OWNER_ID = uuid.UUID("fa55cc88-2e70-4cc4-a24b-7525915ca5e2")
 DEMO_STAFF_ID = uuid.UUID("bb5f827b-714b-4b1e-bf37-804762085029")
+
+DEMO_CHART_OF_ACCOUNTS = (
+    ("1000", "Kas", AccountType.ASSET),
+    ("1010", "Bank", AccountType.ASSET),
+    ("1100", "Piutang Usaha", AccountType.ASSET),
+    ("1200", "Persediaan", AccountType.ASSET),
+    ("2000", "Utang Usaha", AccountType.LIABILITY),
+    ("3000", "Modal", AccountType.EQUITY),
+    ("4000", "Pendapatan Penjualan", AccountType.REVENUE),
+    ("5000", "Harga Pokok Penjualan", AccountType.EXPENSE),
+    ("6100", "Bahan Baku", AccountType.EXPENSE),
+    ("6200", "Transportasi", AccountType.EXPENSE),
+    ("6300", "Utilitas", AccountType.EXPENSE),
+    ("6400", "Sewa", AccountType.EXPENSE),
+    ("6900", "Beban Lain-lain", AccountType.EXPENSE),
+)
 
 
 def seed_demo(session: Session, settings: Settings) -> Business:
@@ -45,6 +69,7 @@ def seed_demo(session: Session, settings: Settings) -> Business:
         business=business,
         role=Role.STAFF,
     )
+    _ensure_chart_of_accounts(session, business)
 
     if created:
         record_audit_event(
@@ -61,6 +86,25 @@ def seed_demo(session: Session, settings: Settings) -> Business:
 
     session.commit()
     return business
+
+
+def _ensure_chart_of_accounts(session: Session, business: Business) -> None:
+    existing_codes = set(
+        session.scalars(
+            select(LedgerAccount.code).where(LedgerAccount.business_id == business.id)
+        )
+    )
+    for code, name, account_type in DEMO_CHART_OF_ACCOUNTS:
+        if code not in existing_codes:
+            session.add(
+                LedgerAccount(
+                    business_id=business.id,
+                    code=code,
+                    name=name,
+                    account_type=account_type,
+                    is_active=True,
+                )
+            )
 
 
 def _ensure_demo_user(

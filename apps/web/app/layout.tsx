@@ -9,6 +9,10 @@ export const metadata: Metadata = {
   },
   description:
     "Automation keuangan yang terlihat, terkontrol, dan dapat diaudit untuk UMKM.",
+  icons: {
+    icon: "/brand/kopi-arunika-mark.png",
+    apple: "/brand/kopi-arunika-mark.png",
+  },
 };
 
 export default function RootLayout({

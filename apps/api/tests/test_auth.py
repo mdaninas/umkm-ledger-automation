@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 
 from app.config import Settings
-from app.models import AuditEvent, Business, Membership, User
+from app.models import AuditEvent, Business, LedgerAccount, Membership, User
 from app.security import create_access_token
 from app.seed import seed_demo
 
@@ -85,3 +85,4 @@ def test_seed_is_idempotent(client: TestClient, settings: Settings) -> None:
         assert session.scalar(select(func.count()).select_from(User)) == 2
         assert session.scalar(select(func.count()).select_from(Membership)) == 2
         assert session.scalar(select(func.count()).select_from(AuditEvent)) == 1
+        assert session.scalar(select(func.count()).select_from(LedgerAccount)) == 13

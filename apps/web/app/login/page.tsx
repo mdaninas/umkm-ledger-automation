@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
+import Image from "next/image";
 import { FormEvent, useState } from "react";
 import { ApiError, login, sessionStorage } from "@/lib/api";
 
@@ -34,132 +35,116 @@ export default function LoginPage() {
         : null;
 
   return (
-    <main className="min-h-screen p-4 sm:p-7">
-      <div className="mx-auto grid min-h-[calc(100vh-3.5rem)] max-w-6xl overflow-hidden rounded-[2rem] border border-[#d8d2c2] bg-white shadow-[0_30px_90px_rgba(21,62,45,0.12)] lg:grid-cols-[1.08fr_0.92fr]">
-        <section className="relative hidden overflow-hidden bg-[#153e2d] p-12 text-white lg:flex lg:flex-col lg:justify-between">
-          <div
-            aria-hidden="true"
-            className="absolute -right-24 -top-28 h-96 w-96 rounded-full border-[64px] border-[#c8ef78]/15"
-          />
-          <div className="relative flex items-center gap-3">
-            <span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#c8ef78] font-black text-[#153e2d]">
-              KA
-            </span>
+    <main className="min-h-screen bg-[#f7f7f5]">
+      <header className="flex h-16 items-center border-b border-[#dedfdb] px-5 sm:px-8">
+        <div className="flex items-center gap-2.5">
+          <span className="grid h-10 w-10 place-items-center rounded-lg border border-[#ead9b9] bg-[#fff5e3]">
+            <Image
+              alt=""
+              className="h-9 w-9 object-contain"
+              height={36}
+              priority
+              src="/brand/kopi-arunika-mark.png"
+              width={36}
+            />
+          </span>
+          <div>
+            <p className="text-sm font-semibold">Kopi Arunika</p>
+            <p className="text-[11px] text-[#777e79]">Finance workspace</p>
+          </div>
+        </div>
+      </header>
+
+      <section className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-6xl items-center px-5 py-12 sm:px-8 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-24">
+        <div className="hidden lg:block">
+          <p className="text-sm font-medium text-[#174d3a]">Ruang kerja demo</p>
+          <h1 className="mt-4 max-w-xl text-4xl font-semibold leading-[1.15] tracking-[-0.045em] text-[#202522]">
+            Dokumen masuk, pembukuan tertelusur.
+          </h1>
+          <p className="mt-5 max-w-lg text-base leading-7 text-[#69716c]">
+            Tinjau hasil ekstraksi, koreksi akun, lalu posting jurnal dengan jejak
+            keputusan yang lengkap.
+          </p>
+          <dl className="mt-10 max-w-lg divide-y divide-[#dedfdb] border-y border-[#dedfdb]">
+            <Feature label="Dokumen privat" value="Akses berbasis workspace" />
+            <Feature label="Review owner" value="Tidak ada posting tanpa konfirmasi" />
+            <Feature label="Audit trail" value="Setiap perubahan tercatat" />
+          </dl>
+        </div>
+
+        <div className="app-card w-full p-6 sm:p-8">
+          <p className="text-xs font-medium text-[#69716c]">UMKM Finance Autopilot</p>
+          <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">
+            Masuk ke akun demo
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-[#69716c]">
+            Kredensial sintetis sudah terisi untuk Kopi Arunika.
+          </p>
+
+          <form className="mt-7 space-y-4" onSubmit={handleSubmit}>
             <div>
-              <p className="font-semibold tracking-tight">Kopi Arunika</p>
-              <p className="text-sm text-white/60">ruang kerja demo</p>
+              <label className="mb-1.5 block text-xs font-medium" htmlFor="email">
+                Email
+              </label>
+              <input
+                autoComplete="email"
+                className="form-control"
+                id="email"
+                onChange={(event) => setEmail(event.target.value)}
+                required
+                type="email"
+                value={email}
+              />
             </div>
-          </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-medium" htmlFor="password">
+                Password
+              </label>
+              <input
+                autoComplete="current-password"
+                className="form-control"
+                id="password"
+                minLength={8}
+                onChange={(event) => setPassword(event.target.value)}
+                required
+                type="password"
+                value={password}
+              />
+            </div>
 
-          <div className="relative max-w-lg">
-            <p className="mb-5 text-xs font-bold uppercase tracking-[0.22em] text-[#c8ef78]">
-              Finance automation, under control
-            </p>
-            <h1 className="text-5xl font-semibold leading-[1.06] tracking-[-0.045em]">
-              Keuangan rapi.
-              <br />
-              Keputusan tetap milik Anda.
-            </h1>
-            <p className="mt-7 max-w-md text-lg leading-8 text-white/68">
-              Fondasi untuk membaca dokumen, mengawal approval, dan menunjukkan setiap
-              jejak automation secara transparan.
-            </p>
-          </div>
-
-          <div className="relative grid grid-cols-3 gap-3 text-sm">
-            {["Tenant scoped", "Audit ready", "Mock first"].map((item, index) => (
+            {error ? (
               <div
-                key={item}
-                className="rounded-2xl border border-white/12 bg-white/[0.06] p-4"
+                className="rounded-lg border border-[#e3b7af] bg-[#fbeeea] px-3.5 py-3 text-sm text-[#8d3a30]"
+                role="alert"
               >
-                <span className="mb-2 block text-[#c8ef78]">0{index + 1}</span>
-                <span className="text-white/74">{item}</span>
+                <strong className="block font-semibold">Belum bisa masuk</strong>
+                <span>{error}</span>
               </div>
-            ))}
-          </div>
-        </section>
+            ) : null}
 
-        <section className="flex items-center px-6 py-12 sm:px-12 lg:px-16">
-          <div className="mx-auto w-full max-w-md">
-            <div className="mb-10 lg:hidden">
-              <span className="inline-grid h-11 w-11 place-items-center rounded-2xl bg-[#153e2d] font-black text-[#c8ef78]">
-                KA
-              </span>
-            </div>
+            <button
+              className="primary-button !mt-6 w-full"
+              disabled={loginMutation.isPending}
+              type="submit"
+            >
+              {loginMutation.isPending ? "Memeriksa akses…" : "Masuk sebagai owner"}
+            </button>
+          </form>
 
-            <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#6f7f76]">
-              UMKM Finance Autopilot
-            </p>
-            <h2 className="mt-3 text-4xl font-semibold tracking-[-0.04em] text-[#14241d]">
-              Masuk ke akun demo
-            </h2>
-            <p className="mt-4 leading-7 text-[#637069]">
-              Gunakan data sintetis Kopi Arunika. Tidak ada data atau kredensial nyata
-              di environment ini.
-            </p>
-
-            <form className="mt-9 space-y-5" onSubmit={handleSubmit}>
-              <div>
-                <label className="mb-2 block text-sm font-semibold" htmlFor="email">
-                  Email
-                </label>
-                <input
-                  autoComplete="email"
-                  className="w-full rounded-2xl border border-[#cbc8bd] bg-[#fbfaf6] px-4 py-3.5 text-[#14241d] transition hover:border-[#8a978f] focus:border-[#668b31]"
-                  id="email"
-                  onChange={(event) => setEmail(event.target.value)}
-                  required
-                  type="email"
-                  value={email}
-                />
-              </div>
-              <div>
-                <label className="mb-2 block text-sm font-semibold" htmlFor="password">
-                  Password
-                </label>
-                <input
-                  autoComplete="current-password"
-                  className="w-full rounded-2xl border border-[#cbc8bd] bg-[#fbfaf6] px-4 py-3.5 text-[#14241d] transition hover:border-[#8a978f] focus:border-[#668b31]"
-                  id="password"
-                  minLength={8}
-                  onChange={(event) => setPassword(event.target.value)}
-                  required
-                  type="password"
-                  value={password}
-                />
-              </div>
-
-              {error ? (
-                <div
-                  className="rounded-2xl border border-[#e8aa97] bg-[#fff3ef] px-4 py-3 text-sm text-[#8a321c]"
-                  role="alert"
-                >
-                  <strong className="block">Belum bisa masuk</strong>
-                  <span>{error}</span>
-                </div>
-              ) : null}
-
-              <button
-                className="w-full rounded-2xl bg-[#153e2d] px-5 py-4 font-bold text-white transition hover:bg-[#20543e] disabled:cursor-wait disabled:opacity-65"
-                disabled={loginMutation.isPending}
-                type="submit"
-              >
-                {loginMutation.isPending ? "Memeriksa akses…" : "Masuk sebagai owner"}
-              </button>
-            </form>
-
-            <div className="mt-6 flex items-start gap-3 rounded-2xl bg-[#f1f5e8] p-4 text-sm text-[#4f6157]">
-              <span aria-hidden="true" className="mt-0.5 text-lg">
-                ✓
-              </span>
-              <p>
-                Kredensial demo sudah terisi. Login memverifikasi membership bisnis di
-                server, bukan hanya isi token.
-              </p>
-            </div>
-          </div>
-        </section>
-      </div>
+          <p className="mt-5 border-t border-[#e3e4e1] pt-4 text-xs leading-5 text-[#777e79]">
+            Environment ini tidak menyimpan data atau kredensial nyata.
+          </p>
+        </div>
+      </section>
     </main>
+  );
+}
+
+function Feature({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="grid grid-cols-[150px_minmax(0,1fr)] gap-6 py-4 text-sm">
+      <dt className="font-medium">{label}</dt>
+      <dd className="text-[#69716c]">{value}</dd>
+    </div>
   );
 }

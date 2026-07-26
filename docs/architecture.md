@@ -1,31 +1,45 @@
-# Arsitektur Fase 0
-
-Fase 0 membangun batas layanan dan fondasi tenancy sebelum alur dokumen MVP 1.
+# System Architecture
 
 ```mermaid
 flowchart LR
-    Browser["Next.js Web"] --> API["FastAPI"]
+    Browser["Next.js Finance Inbox"] --> API["FastAPI"]
     API --> DB[("PostgreSQL")]
-    API --> Redis[("Redis")]
-    API --> Storage[("MinIO")]
-    Redis --> Worker["Celery Worker"]
-    Mailpit["Mailpit"]:::future
-    classDef future stroke-dasharray: 4 4
+    API --> Storage[("Private MinIO bucket")]
+    API --> Queue[("Redis")]
+    Queue --> Worker["Celery document worker"]
+    Worker --> Storage
+    Worker --> Provider["Mock or HTTP extraction provider"]
+    Worker --> DB
+    Owner["Business owner"] --> Browser
 ```
 
-## Keputusan
+## Document flow
 
-- `business_id` menjadi batas tenant pada seluruh entitas bisnis.
-- JWT hanya memuat identitas pengguna; bisnis aktif dan role selalu diverifikasi
-  kembali melalui membership di database.
-- API, worker, dan seed memakai package Python yang sama.
-- Migration Alembic adalah sumber schema database. Pembuatan schema langsung hanya
-  diizinkan pada environment test berbasis SQLite.
-- Health readiness memeriksa database, Redis, object storage, dan worker.
-- Kredensial pada `.env.example` hanya untuk data sintetis lokal dan wajib diganti
-  untuk deployment non-demo.
+1. The API authenticates the user, validates the file signature, writes it to a
+   tenant-prefixed private object key, and stores document metadata.
+2. The API returns the document identifier before background extraction starts.
+3. Celery records each workflow step, validates structured provider output, runs
+   deterministic finance checks, and searches for duplicates.
+4. A valid document becomes a balanced draft journal and an approval request.
+5. The owner reviews the extracted fields and account category.
+6. An idempotent posting transaction marks the journal final and updates the
+   financial summary.
 
-## Batas Fase 0
+## Trust boundaries
 
-Belum ada upload, ekstraksi AI, ledger, approval, rekonsiliasi, atau pengiriman
-pesan. Komponen-komponen tersebut sengaja menunggu exit gate dan persetujuan MVP 1.
+- `business_id` scopes all finance entities and queries.
+- JWT business and user claims are insufficient on their own; membership and role
+  are loaded from the database.
+- Uploaded bytes and extracted text are untrusted input.
+- Provider output must match a strict schema and pass deterministic validation.
+- The extraction provider cannot post journals or execute tools.
+- Source files stay private and are fetched through an authenticated API endpoint.
+- Only posted, balanced journals contribute to dashboard totals.
+- Audit events record system steps and human decisions with correlation IDs.
+
+## Runtime
+
+The API, worker, and seed share the same Python package. Alembic owns production
+schema changes, while direct schema creation is restricted to isolated SQLite
+tests. Health checks cover PostgreSQL, Redis, private object storage, the worker,
+and the web application.
