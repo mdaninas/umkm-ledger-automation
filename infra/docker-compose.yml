@@ -1,0 +1,191 @@
+name: umkm-finance-autopilot
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-umkm}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-umkm_local_password}
+      POSTGRES_DB: ${POSTGRES_DB:-umkm_finance}
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-umkm} -d ${POSTGRES_DB:-umkm_finance}",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  redis:
+    image: redis:8-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_PORT:-6380}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-umkm_minio}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-umkm_minio_password}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  minio-init:
+    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >
+        mc alias set local http://minio:9000
+        ${S3_ACCESS_KEY:-umkm_minio}
+        ${S3_SECRET_KEY:-umkm_minio_password}
+        && mc mb --ignore-existing local/${S3_BUCKET:-umkm-documents}
+        && mc anonymous set none local/${S3_BUCKET:-umkm-documents}
+    restart: "no"
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    environment: &api_environment
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-umkm}:${POSTGRES_PASSWORD:-umkm_local_password}@postgres:5432/${POSTGRES_DB:-umkm_finance}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-umkm_minio}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-umkm_minio_password}
+      S3_BUCKET: ${S3_BUCKET:-umkm-documents}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      JWT_SECRET: ${JWT_SECRET:-change-this-local-demo-secret-at-least-32-chars}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-480}
+      DEMO_OWNER_EMAIL: ${DEMO_OWNER_EMAIL:-owner@kopiarunika.demo}
+      DEMO_OWNER_PASSWORD: ${DEMO_OWNER_PASSWORD:-Demo123!}
+      DEMO_STAFF_EMAIL: ${DEMO_STAFF_EMAIL:-staff@kopiarunika.demo}
+      DEMO_STAFF_PASSWORD: ${DEMO_STAFF_PASSWORD:-Demo123!}
+    command:
+      [
+        "/bin/sh",
+        "-c",
+        "alembic -c alembic.ini upgrade head && python -m app.seed",
+      ]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    restart: "no"
+
+  api:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    environment: *api_environment
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live', timeout=2)",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ..
+      dockerfile: services/worker/Dockerfile
+    environment: *api_environment
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "celery -A app.worker.celery_app inspect ping --timeout 2 | grep -q pong",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/login"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:

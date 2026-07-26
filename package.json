@@ -1,0 +1,27 @@
+{
+  "name": "umkm-finance-autopilot",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.1.2",
+  "scripts": {
+    "dev": "docker compose -f infra/docker-compose.yml up --build",
+    "dev:detached": "docker compose -f infra/docker-compose.yml up --build -d",
+    "dev:down": "docker compose -f infra/docker-compose.yml down",
+    "dev:reset": "docker compose -f infra/docker-compose.yml down -v --remove-orphans",
+    "dev:status": "docker compose -f infra/docker-compose.yml ps",
+    "dev:verify": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-stack.ps1",
+    "web:dev": "pnpm --filter @umkm/web dev",
+    "api:dev": "uv run --project apps/api uvicorn app.main:app --reload --app-dir apps/api",
+    "api:migrate": "uv run --project apps/api alembic -c apps/api/alembic.ini upgrade head",
+    "api:seed": "uv run --project apps/api python -m app.seed",
+    "lint": "pnpm --filter @umkm/web lint && uv run --project apps/api ruff check apps/api",
+    "typecheck": "pnpm --filter @umkm/web typecheck && uv run --project apps/api mypy apps/api/app",
+    "test": "pnpm --filter @umkm/web test:run && uv run --project apps/api pytest apps/api/tests",
+    "build": "pnpm --filter @umkm/web build",
+    "quality": "pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+  },
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=10"
+  }
+}

@@ -1,0 +1,29 @@
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+
+# JavaScript
+node_modules/
+.next/
+coverage/
+*.tsbuildinfo
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+htmlcov/
+
+# Runtime
+*.log
+.coverage
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
