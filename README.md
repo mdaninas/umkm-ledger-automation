@@ -1,66 +1,91 @@
 # UMKM Finance Autopilot
 
-Foundation aplikasi automation keuangan untuk UMKM berdasarkan
-[PRD](../PRD_UMKM_Finance_Autopilot.md). Implementasi saat ini sengaja berhenti di
-**Fase 0**: belum ada upload dokumen, ekstraksi AI, ledger, atau tindakan finansial.
+**UMKM** stands for *Usaha Mikro, Kecil, dan Menengah*, the Indonesian term for
+micro, small, and medium enterprises (MSMEs). These businesses form a vital part
+of Indonesia's economy, but many still manage receipts, invoices, bank
+transactions, and financial reports through fragmented manual processes.
 
-## Jalankan dalam kurang dari lima menit
+UMKM Finance Autopilot is a financial automation foundation designed to turn
+those scattered inputs into controlled, traceable workflows. It is built
+according to the UMKM Finance Autopilot PRD, with deterministic financial rules,
+human approval, tenant isolation, and auditability as core principles.
 
-Prasyarat: Docker Desktop dengan Compose v2.
+The current implementation intentionally stops at **Phase 0**. Document uploads,
+AI extraction, the double-entry ledger, approvals, and other financial actions
+are not implemented yet.
+
+## Run in under five minutes
+
+Prerequisite: Docker Desktop with Docker Compose v2.
 
 ```powershell
 pnpm dev
 ```
 
-Perintah itu membangun dan menjalankan Next.js, FastAPI, Celery, PostgreSQL, Redis,
-MinIO, serta Mailpit. Migration dan seed dijalankan otomatis sebelum API dimulai.
+This command builds and starts Next.js, FastAPI, Celery, PostgreSQL, Redis,
+MinIO, and Mailpit. Database migrations and demo data seeding run automatically
+before the API starts.
 
-Buka:
+Local services:
 
-- Web: http://localhost:3000
-- OpenAPI: http://localhost:8000/docs
-- Health: http://localhost:8000/api/v1/health
+- Web application: http://localhost:3000
+- OpenAPI documentation: http://localhost:8000/docs
+- System health: http://localhost:8000/api/v1/health
 - MinIO console: http://localhost:9001
 - Mailpit: http://localhost:8025
 
-Akun sintetis demo:
+Synthetic demo accounts:
 
 | Role | Email | Password |
 |---|---|---|
 | Owner | `owner@kopiarunika.demo` | `Demo123!` |
 | Staff | `staff@kopiarunika.demo` | `Demo123!` |
 
-Jangan gunakan kredensial ini di deployment publik. Nilai lokal dapat diganti dengan
-menyalin `.env.example` menjadi `.env`.
+Do not use these credentials in a public deployment. To customize the local
+configuration, copy `.env.example` to `.env` and replace the default values.
 
-### Verifikasi stack
+### Verify the stack
 
-Setelah seluruh container sehat:
+After all containers are healthy, run:
 
 ```powershell
 pnpm dev:verify
 ```
 
-Script memeriksa readiness seluruh dependency, login owner, tenant Kopi Arunika, dan
-respons web. Hentikan stack dengan `pnpm dev:down`. Untuk reset database dan seed dari
-nol gunakan `pnpm dev:reset`, lalu `pnpm dev` lagi.
+The verification script checks dependency readiness, owner authentication,
+the Kopi Arunika tenant, and the web response.
 
-## Quality gates lokal
+Stop the stack with:
 
-Instal dependency:
+```powershell
+pnpm dev:down
+```
+
+To delete the local Docker volumes and recreate the database from a clean seed:
+
+```powershell
+pnpm dev:reset
+pnpm dev
+```
+
+> `pnpm dev:reset` permanently removes the local Docker volumes for this project.
+
+## Local quality gates
+
+Install the dependencies:
 
 ```powershell
 pnpm install
 uv sync --project apps/api --extra dev
 ```
 
-Jalankan seluruh lint, type-check, unit test, dan build:
+Run linting, type checking, unit tests, and the production build:
 
 ```powershell
 pnpm quality
 ```
 
-Perintah individual:
+Individual commands:
 
 ```powershell
 pnpm lint
@@ -69,7 +94,7 @@ pnpm test
 pnpm build
 ```
 
-Migration dan seed saat menjalankan API di luar Docker:
+To run migrations, seed data, and the API outside Docker:
 
 ```powershell
 pnpm api:migrate
@@ -77,49 +102,52 @@ pnpm api:seed
 pnpm api:dev
 ```
 
-Pastikan `DATABASE_URL`, Redis, dan MinIO mengarah ke host yang benar bila API
-dijalankan di luar Compose. Port host default adalah PostgreSQL `5433` dan Redis
-`6380`; komunikasi internal container tetap menggunakan `5432` dan `6379`.
+When running the API outside Compose, ensure `DATABASE_URL`, Redis, and MinIO
+point to the correct host. The default host ports are PostgreSQL `5433` and
+Redis `6380`; containers communicate internally through ports `5432` and `6379`.
 
-## Struktur repository
+## Repository structure
 
 ```text
 apps/
-  api/                 FastAPI, domain foundation, Alembic, tests
-  web/                 Next.js, Tailwind CSS, TanStack Query, Vitest
+  api/                 FastAPI, domain foundation, Alembic, and tests
+  web/                 Next.js, Tailwind CSS, TanStack Query, and Vitest
 services/
-  worker/              Image Celery dengan package API bersama
+  worker/              Celery image using the shared API package
 packages/
-  contracts/           Tempat generated OpenAPI client pada MVP 1
+  contracts/           Reserved for the generated OpenAPI client in MVP 1
 infra/
-  docker-compose.yml   PostgreSQL, Redis, MinIO, Mailpit, API, worker, web
-fixtures/              Data sintetis untuk MVP berikutnya
-evals/                 Dataset dan runner evaluasi untuk fase berikutnya
+  docker-compose.yml   PostgreSQL, Redis, MinIO, Mailpit, API, worker, and web
+fixtures/              Synthetic data for future MVPs
+evals/                 Evaluation datasets and runners for future phases
 docs/
   architecture.md
 ```
 
-## Keputusan keamanan Fase 0
+## Phase 0 security decisions
 
-- JWT membawa ID pengguna dan ID bisnis, tetapi membership dan role selalu
-  diverifikasi kembali dari database.
-- Seed bersifat idempotent dan hanya berisi data sintetis Kopi Arunika.
-- Login sukses dicatat sebagai audit event dengan correlation ID.
-- Log API berbentuk JSON dan respons error umum tidak menampilkan stack trace.
-- Schema production hanya diubah melalui Alembic.
-- Readiness memeriksa API, database, Redis, MinIO, dan Celery worker.
-- Tidak ada transfer, pembayaran, external messaging, atau fitur finansial lain.
+- JWTs carry user and business identifiers, but membership and role are always
+  verified against the database.
+- The idempotent seed contains only synthetic Kopi Arunika data.
+- Successful logins create audit events with correlation IDs.
+- API logs use structured JSON, while generic error responses do not expose
+  stack traces.
+- Production schemas are changed exclusively through Alembic migrations.
+- Readiness checks cover the API, database, Redis, MinIO, and Celery worker.
+- The API and worker containers run as non-root users.
+- No transfers, payments, external messages, or other financial actions exist
+  in Phase 0.
 
-Diagram dan batas arsitektur tersedia di
-[docs/architecture.md](./docs/architecture.md).
+See [docs/architecture.md](./docs/architecture.md) for the architecture diagram
+and Phase 0 boundaries.
 
-## Exit gate Fase 0
+## Phase 0 exit gate
 
-| Gate PRD | Bukti |
+| PRD gate | Evidence |
 |---|---|
-| Seluruh service sehat | Compose healthcheck + `pnpm dev:verify` |
-| Login demo berhasil | Test API dan verifikasi stack |
-| Migration/seed dari database kosong | Service `migrate`, seed idempotency test |
-| Test dasar lulus | `pnpm quality` dan workflow GitHub Actions |
+| All services are healthy | Compose health checks and `pnpm dev:verify` |
+| Demo login succeeds | API tests and stack verification |
+| Migration and seed work from an empty database | `migrate` service and seed idempotency test |
+| Baseline tests pass | `pnpm quality` and the GitHub Actions workflow |
 
-MVP 1 baru boleh dimulai setelah Fase 0 ini ditinjau dan disetujui.
+MVP 1 should only begin after Phase 0 has been reviewed and approved.
