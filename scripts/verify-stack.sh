@@ -17,6 +17,11 @@ curl --fail --silent \
   http://localhost:8000/api/v1/auth/me |
   grep --quiet '"name":"Kopi Arunika"'
 
+curl --fail --silent \
+  -H "Authorization: Bearer ${TOKEN}" \
+  http://localhost:8000/api/v1/bank-transactions |
+  grep --quiet '"counts"'
+
 curl --fail --silent http://localhost:3000/login >/dev/null
 
-echo "OK: readiness, login demo, tenant, dan web terverifikasi."
+echo "OK: readiness, login demo, tenant, rekonsiliasi bank, dan web terverifikasi."

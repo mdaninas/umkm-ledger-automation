@@ -24,6 +24,13 @@ journal, and is posted only after human review.
 - Requires owner approval before a journal affects financial summaries.
 - Makes upload and posting requests idempotent.
 - Shows workflow steps, extraction metadata, decisions, and audit events.
+- Imports UTF-8 bank statement CSV files with explicit column mapping and
+  per-row validation.
+- Prevents duplicate files and duplicate bank transactions.
+- Scores reconciliation candidates deterministically using amount, date,
+  counterparty, and reference evidence.
+- Auto-matches only high-confidence, conflict-free candidates and routes
+  ambiguous transactions to human review.
 - Enforces tenant scope and database-backed roles on every protected request.
 
 Draft journals are deliberately excluded from posted income, expenses, cash, and
@@ -66,6 +73,34 @@ deployment.
 
 The default mock provider returns stable synthetic receipt data, so the complete
 workflow works without an external API key.
+
+### Bank reconciliation walkthrough
+
+Prepare the synthetic posted documents used by the reconciliation scenario:
+
+```powershell
+pnpm demo:bank
+```
+
+Then:
+
+1. Open **Mutasi bank**.
+2. Download the sample from the page, or select
+   `fixtures/bank-statements/kopi-arunika-july-2026.csv`.
+3. Confirm the detected mapping for `tanggal`, `deskripsi`, `debit`, `kredit`,
+   and `referensi`, then import.
+4. Inspect the import summary: three valid rows and one intentionally invalid
+   date row.
+5. Open the Rp350.000 transaction to see a conflict-free automatic match.
+6. Open the Rp825.000 transaction to inspect an explainable review candidate,
+   add a comment, and confirm it.
+7. Verify that the Rp1.200.000 transaction remains unmatched.
+8. Import the same file again and confirm that no transaction is added.
+
+The score is deterministic: amount contributes up to 50 points, date 20,
+counterparty 20, and reference 10. Scores of 90 or more may auto-match only when
+there is no competing or already-used source; scores from 70 to 89 require
+review.
 
 ### Local services
 
@@ -125,8 +160,9 @@ pnpm quality
 
 The backend suite covers authentication, tenant boundaries, valid and invalid
 uploads, schema failures, exact and semantic duplicates, balanced journals,
-rejection of unbalanced journals, draft exclusion, audit events, and idempotent
-posting.
+rejection of unbalanced journals, draft exclusion, bank row validation,
+deterministic reconciliation scoring, match uniqueness, audit events, and
+idempotent document, journal, and bank imports.
 
 Useful individual commands:
 
@@ -149,14 +185,14 @@ containers communicate internally through `5432` and `6379`.
 ```text
 apps/
   api/                 FastAPI, workflows, ledger, Alembic, and tests
-  web/                 Next.js inbox, review, approval, and dashboard
+  web/                 Next.js inbox, review, banking, approval, and dashboard
 services/
   worker/              Celery image using the shared API package
 packages/
   contracts/           Space for generated OpenAPI client contracts
 infra/
   docker-compose.yml   PostgreSQL, Redis, MinIO, Mailpit, API, worker, and web
-fixtures/              Synthetic document inputs
+fixtures/              Synthetic document and bank-statement inputs
 evals/                 Extraction evaluation datasets and runners
 docs/
   architecture.md
@@ -176,6 +212,8 @@ docs/
 - Owner-only approval and posting are enforced by the API.
 - Upload and posting idempotency prevent repeated requests from duplicating
   business records.
+- Partial unique indexes prevent one bank transaction or source document from
+  being used by two active reconciliations.
 - Structured logs and append-only audit events carry correlation IDs without
   exposing source document contents.
 - The API and worker containers run as non-root users.

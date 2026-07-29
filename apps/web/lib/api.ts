@@ -175,6 +175,108 @@ export interface DashboardSummary {
   bank_balance: string;
 }
 
+export type BankTransactionStatus =
+  | "UNMATCHED"
+  | "SUGGESTED"
+  | "AUTO_MATCHED"
+  | "CONFIRMED";
+
+export type ReconciliationStatus =
+  | "SUGGESTED"
+  | "AUTO_MATCHED"
+  | "CONFIRMED"
+  | "REJECTED";
+
+export interface BankColumnMapping {
+  date: string;
+  description: string;
+  amount?: string;
+  debit?: string;
+  credit?: string;
+  reference?: string;
+  date_format?: string;
+}
+
+export interface BankImport {
+  id: string;
+  filename: string;
+  sha256: string;
+  column_mapping: Record<string, string>;
+  status: "COMPLETED" | "COMPLETED_WITH_ERRORS";
+  row_count: number;
+  imported_count: number;
+  duplicate_count: number;
+  error_count: number;
+  row_errors: Array<{ row: number; code: string; message: string }>;
+  created_at: string;
+  duplicate_file: boolean;
+}
+
+export interface ScoreComponent {
+  score: string;
+  max_score: string;
+  explanation: string;
+}
+
+export interface ReconciliationCandidate {
+  id: string;
+  bank_transaction_id: string;
+  source_type: "DOCUMENT";
+  source: {
+    id: string;
+    document_type: DocumentType;
+    document_number: string | null;
+    vendor_name: string | null;
+    transaction_date: string | null;
+    total: string | null;
+    currency: string;
+    status: DocumentStatus;
+  };
+  score: string;
+  score_breakdown: {
+    amount: ScoreComponent;
+    date: ScoreComponent;
+    vendor: ScoreComponent;
+    reference: ScoreComponent;
+    policy: {
+      review_threshold: string;
+      auto_match_threshold: string;
+      auto_match_eligible: boolean;
+      conflicts: string[];
+    };
+  };
+  status: ReconciliationStatus;
+  decided_by: string | null;
+  decision_comment: string | null;
+  decided_at: string | null;
+  created_at: string;
+}
+
+export interface BankTransaction {
+  id: string;
+  bank_import_id: string;
+  row_number: number;
+  transaction_date: string;
+  description: string;
+  amount: string;
+  direction: "DEBIT" | "CREDIT";
+  reference: string | null;
+  status: BankTransactionStatus;
+  created_at: string;
+  candidates: ReconciliationCandidate[];
+}
+
+export interface BankTransactionList {
+  items: BankTransaction[];
+  total: number;
+  counts: {
+    total: number;
+    unmatched: number;
+    suggested: number;
+    matched: number;
+  };
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -322,6 +424,62 @@ export function getApprovals(token: string): Promise<Approval[]> {
 
 export function getDashboardSummary(token: string): Promise<DashboardSummary> {
   return apiRequest("/api/v1/dashboard/summary", {}, token);
+}
+
+export function getBankImports(
+  token: string,
+): Promise<{ items: BankImport[]; total: number }> {
+  return apiRequest("/api/v1/bank-imports", {}, token);
+}
+
+export function getBankTransactions(
+  token: string,
+  filters: { status?: string; search?: string } = {},
+): Promise<BankTransactionList> {
+  const params = new URLSearchParams();
+  if (filters.status) params.set("status", filters.status);
+  if (filters.search) params.set("search", filters.search);
+  const query = params.size ? `?${params.toString()}` : "";
+  return apiRequest(`/api/v1/bank-transactions${query}`, {}, token);
+}
+
+export function uploadBankImport(
+  token: string,
+  file: File,
+  mapping: BankColumnMapping,
+): Promise<BankImport> {
+  const body = new FormData();
+  body.append("file", file);
+  body.append("mapping", JSON.stringify(mapping));
+  return apiRequest(
+    "/api/v1/bank-imports",
+    { method: "POST", body },
+    token,
+  );
+}
+
+export function confirmReconciliation(
+  token: string,
+  id: string,
+  comment: string,
+): Promise<ReconciliationCandidate> {
+  return apiRequest(
+    `/api/v1/reconciliations/${id}/confirm`,
+    { method: "POST", body: JSON.stringify({ comment: comment || null }) },
+    token,
+  );
+}
+
+export function rejectReconciliation(
+  token: string,
+  id: string,
+  comment: string,
+): Promise<ReconciliationCandidate> {
+  return apiRequest(
+    `/api/v1/reconciliations/${id}/reject`,
+    { method: "POST", body: JSON.stringify({ comment }) },
+    token,
+  );
 }
 
 export async function getDocumentBlob(token: string, id: string): Promise<Blob> {

@@ -14,6 +14,7 @@
     "api:dev": "uv run --project apps/api uvicorn app.main:app --reload --app-dir apps/api",
     "api:migrate": "uv run --project apps/api alembic -c apps/api/alembic.ini upgrade head",
     "api:seed": "uv run --project apps/api python -m app.seed",
+    "demo:bank": "docker compose -f infra/docker-compose.yml exec api python -m app.bank_demo",
     "lint": "pnpm --filter @umkm/web lint && uv run --project apps/api ruff check apps/api",
     "typecheck": "pnpm --filter @umkm/web typecheck && uv run --project apps/api mypy apps/api/app",
     "test": "pnpm --filter @umkm/web test:run && uv run --project apps/api pytest apps/api/tests",

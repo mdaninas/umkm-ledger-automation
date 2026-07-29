@@ -11,12 +11,14 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    Index,
     Integer,
     Numeric,
     String,
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -105,6 +107,30 @@ class RiskLevel(StrEnum):
     LOW = "LOW"
     MEDIUM = "MEDIUM"
     HIGH = "HIGH"
+
+
+class BankImportStatus(StrEnum):
+    COMPLETED = "COMPLETED"
+    COMPLETED_WITH_ERRORS = "COMPLETED_WITH_ERRORS"
+
+
+class BankDirection(StrEnum):
+    DEBIT = "DEBIT"
+    CREDIT = "CREDIT"
+
+
+class BankTransactionStatus(StrEnum):
+    UNMATCHED = "UNMATCHED"
+    SUGGESTED = "SUGGESTED"
+    AUTO_MATCHED = "AUTO_MATCHED"
+    CONFIRMED = "CONFIRMED"
+
+
+class ReconciliationStatus(StrEnum):
+    SUGGESTED = "SUGGESTED"
+    AUTO_MATCHED = "AUTO_MATCHED"
+    CONFIRMED = "CONFIRMED"
+    REJECTED = "REJECTED"
 
 
 class Business(Base):
@@ -473,3 +499,152 @@ class ApprovalRequest(Base):
     )
     decision_comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class BankImport(Base):
+    __tablename__ = "bank_imports"
+    __table_args__ = (
+        UniqueConstraint(
+            "business_id",
+            "sha256",
+            name="uq_bank_import_business_sha256",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    business_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("businesses.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    column_mapping: Mapped[dict[str, Any]] = mapped_column(
+        "mapping", JSON, nullable=False
+    )
+    status: Mapped[BankImportStatus] = mapped_column(
+        Enum(BankImportStatus, native_enum=False, length=32), nullable=False
+    )
+    row_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    imported_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    duplicate_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    error_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    row_errors: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSON, nullable=False, default=list
+    )
+    created_by: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    transactions: Mapped[list["BankTransaction"]] = relationship(
+        back_populates="bank_import",
+        cascade="all, delete-orphan",
+        order_by="BankTransaction.row_number",
+    )
+
+
+class BankTransaction(Base):
+    __tablename__ = "bank_transactions"
+    __table_args__ = (
+        UniqueConstraint(
+            "business_id",
+            "external_fingerprint",
+            name="uq_bank_transaction_business_fingerprint",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    business_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("businesses.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    bank_import_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("bank_imports.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    row_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    external_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    transaction_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    description: Mapped[str] = mapped_column(String(500), nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    direction: Mapped[BankDirection] = mapped_column(
+        Enum(BankDirection, native_enum=False, length=16), nullable=False
+    )
+    reference: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    status: Mapped[BankTransactionStatus] = mapped_column(
+        Enum(BankTransactionStatus, native_enum=False, length=24),
+        nullable=False,
+        default=BankTransactionStatus.UNMATCHED,
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    bank_import: Mapped[BankImport] = relationship(back_populates="transactions")
+    reconciliations: Mapped[list["Reconciliation"]] = relationship(
+        back_populates="bank_transaction",
+        cascade="all, delete-orphan",
+        order_by="Reconciliation.score.desc()",
+    )
+
+
+class Reconciliation(Base):
+    __tablename__ = "reconciliations"
+    __table_args__ = (
+        UniqueConstraint(
+            "business_id",
+            "bank_transaction_id",
+            "source_type",
+            "source_id",
+            name="uq_reconciliation_candidate",
+        ),
+        Index(
+            "uq_reconciliation_active_bank_transaction",
+            "bank_transaction_id",
+            unique=True,
+            postgresql_where=text("status IN ('AUTO_MATCHED', 'CONFIRMED')"),
+            sqlite_where=text("status IN ('AUTO_MATCHED', 'CONFIRMED')"),
+        ),
+        Index(
+            "uq_reconciliation_active_source",
+            "business_id",
+            "source_type",
+            "source_id",
+            unique=True,
+            postgresql_where=text("status IN ('AUTO_MATCHED', 'CONFIRMED')"),
+            sqlite_where=text("status IN ('AUTO_MATCHED', 'CONFIRMED')"),
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    business_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("businesses.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    bank_transaction_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("bank_transactions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    source_type: Mapped[str] = mapped_column(String(40), nullable=False)
+    source_id: Mapped[uuid.UUID] = mapped_column(nullable=False, index=True)
+    score: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
+    score_breakdown: Mapped[dict[str, Any]] = mapped_column(
+        JSON, nullable=False, default=dict
+    )
+    status: Mapped[ReconciliationStatus] = mapped_column(
+        Enum(ReconciliationStatus, native_enum=False, length=24),
+        nullable=False,
+        index=True,
+    )
+    decided_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
+    )
+    decision_comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    bank_transaction: Mapped[BankTransaction] = relationship(
+        back_populates="reconciliations"
+    )

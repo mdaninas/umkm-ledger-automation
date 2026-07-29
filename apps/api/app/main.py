@@ -8,7 +8,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import auth, documents, finance
+from app.api import auth, banking, documents, finance
 from app.api import health as health_routes
 from app.config import Settings, get_settings
 from app.database import Database
@@ -98,6 +98,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.include_router(auth.router, prefix=app_settings.api_v1_prefix)
     application.include_router(documents.router, prefix=app_settings.api_v1_prefix)
     application.include_router(finance.router, prefix=app_settings.api_v1_prefix)
+    application.include_router(banking.router, prefix=app_settings.api_v1_prefix)
 
     @application.get("/")
     def root() -> dict[str, str]:

@@ -2,7 +2,7 @@
 
 ```mermaid
 flowchart LR
-    Browser["Next.js Finance Inbox"] --> API["FastAPI"]
+    Browser["Next.js finance workspace"] --> API["FastAPI"]
     API --> DB[("PostgreSQL")]
     API --> Storage[("Private MinIO bucket")]
     API --> Queue[("Redis")]
@@ -10,6 +10,8 @@ flowchart LR
     Worker --> Storage
     Worker --> Provider["Mock or HTTP extraction provider"]
     Worker --> DB
+    API --> Match["Deterministic reconciliation engine"]
+    Match --> DB
     Owner["Business owner"] --> Browser
 ```
 
@@ -25,6 +27,21 @@ flowchart LR
 6. An idempotent posting transaction marks the journal final and updates the
    financial summary.
 
+## Bank reconciliation flow
+
+1. The user uploads a UTF-8 CSV and explicitly maps date, description, amount,
+   and optional reference columns.
+2. Each valid row receives a deterministic fingerprint. Duplicate files and
+   duplicate transaction rows do not create new records.
+3. Read-only bank transactions are compared with posted documents using amount
+   (50 points), date distance (20), normalized counterparty (20), and reference
+   evidence (10).
+4. A conflict-free score of 90 or more may auto-match. Scores from 70 to 89 are
+   suggestions; lower scores remain unmatched.
+5. Manual confirmation and rejection are tenant-scoped, audited, and protected
+   by database constraints that allow only one active match per bank transaction
+   and source document.
+
 ## Trust boundaries
 
 - `business_id` scopes all finance entities and queries.
@@ -35,6 +52,8 @@ flowchart LR
 - The extraction provider cannot post journals or execute tools.
 - Source files stay private and are fetched through an authenticated API endpoint.
 - Only posted, balanced journals contribute to dashboard totals.
+- Bank imports never move money and imported transactions remain read-only.
+- Reconciliation scores are deterministic and expose their component evidence.
 - Audit events record system steps and human decisions with correlation IDs.
 
 ## Runtime

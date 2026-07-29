@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     max_future_days: int = 7
     minimum_extraction_confidence: Decimal = Decimal("0.75")
     enqueue_document_tasks: bool = True
+    reconciliation_auto_match_threshold: Decimal = Decimal("90")
+    reconciliation_review_threshold: Decimal = Decimal("70")
+    reconciliation_ambiguity_margin: Decimal = Decimal("10")
 
     ai_provider: str = "mock"
     ai_http_endpoint: str | None = None

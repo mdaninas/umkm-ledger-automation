@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApiError, login, uploadDocument } from "@/lib/api";
+import { ApiError, login, uploadBankImport, uploadDocument } from "@/lib/api";
 
 describe("API auth client", () => {
   afterEach(() => {
@@ -88,5 +88,50 @@ describe("API auth client", () => {
     expect(headers.get("Authorization")).toBe("Bearer access-token");
     expect(headers.has("Content-Type")).toBe(false);
     expect(headers.get("Idempotency-Key")).toBe("upload-request-0001");
+  });
+
+  it("mengirim file mutasi dan mapping kolom sebagai multipart", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: "bank-import-id",
+          filename: "mutasi.csv",
+          status: "COMPLETED",
+          row_count: 1,
+          imported_count: 1,
+          duplicate_count: 0,
+          error_count: 0,
+          row_errors: [],
+        }),
+        { status: 201, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const file = new File(
+      ["tanggal,deskripsi,debit,kredit\n2026-07-25,Biji kopi,350000,\n"],
+      "mutasi.csv",
+      { type: "text/csv" },
+    );
+
+    await uploadBankImport("access-token", file, {
+      date: "tanggal",
+      description: "deskripsi",
+      debit: "debit",
+      credit: "kredit",
+    });
+
+    const options = fetchMock.mock.calls[0][1] as RequestInit;
+    const body = options.body as FormData;
+    expect(body.get("file")).toBe(file);
+    expect(body.get("mapping")).toBe(
+      JSON.stringify({
+        date: "tanggal",
+        description: "deskripsi",
+        debit: "debit",
+        credit: "kredit",
+      }),
+    );
+    const headers = options.headers as Headers;
+    expect(headers.has("Content-Type")).toBe(false);
   });
 });

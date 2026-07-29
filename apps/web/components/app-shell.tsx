@@ -27,6 +27,7 @@ export function useSessionToken(): string | null {
 const navigation = [
   { href: "/dashboard", label: "Ringkasan", icon: "dashboard" },
   { href: "/inbox", label: "Dokumen", icon: "inbox" },
+  { href: "/banking", label: "Mutasi bank", icon: "bank" },
   { href: "/approvals", label: "Approval", icon: "approval" },
 ];
 
@@ -225,6 +226,11 @@ function NavIcon({ name, active }: { name: string; active: boolean }) {
         <>
           <path d="M4 4h16v16H4z" stroke={stroke} strokeLinejoin="round" strokeWidth="1.7" />
           <path d="M4 14h4l2 3h4l2-3h4" stroke={stroke} strokeLinejoin="round" strokeWidth="1.7" />
+        </>
+      ) : name === "bank" ? (
+        <>
+          <path d="m3 9 9-5 9 5" stroke={stroke} strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" />
+          <path d="M5 10h14M6 10v7m4-7v7m4-7v7m4-7v7M4 20h16" stroke={stroke} strokeLinecap="round" strokeWidth="1.7" />
         </>
       ) : (
         <>
