@@ -1,16 +1,19 @@
 @import "tailwindcss";
 
 :root {
-  --ink: #202522;
-  --muted: #69716c;
-  --canvas: #f7f7f5;
-  --surface: #ffffff;
-  --surface-soft: #f1f2ef;
-  --line: #dfe1dd;
-  --line-strong: #cfd3cd;
-  --forest: #174d3a;
-  --green: #167451;
-  --green-soft: #e8f3ed;
+  --ink: #18251f;
+  --muted: #667169;
+  --canvas: #f3eee5;
+  --surface: #fffdf9;
+  --surface-soft: #eee7dc;
+  --line: #dfd5c7;
+  --line-strong: #cbbfaf;
+  --forest: #173f32;
+  --forest-deep: #0f3027;
+  --green: #2c7356;
+  --green-soft: #e5f0e9;
+  --terracotta: #d56f3a;
+  --terracotta-soft: #f6e2d5;
   --danger: #a13e32;
   --warning: #8a6116;
 }
@@ -59,19 +62,22 @@ a:focus-visible {
 
 .app-card {
   border: 1px solid var(--line);
-  border-radius: 0.75rem;
+  border-radius: 0.875rem;
   background: var(--surface);
+  box-shadow: 0 1px 2px rgb(56 43 29 / 0.035);
 }
 
 .app-card-interactive {
   transition:
     border-color 140ms ease,
-    background 140ms ease;
+    background 140ms ease,
+    transform 140ms ease;
 }
 
 .app-card-interactive:hover {
   border-color: var(--line-strong);
-  background: #fbfcfa;
+  background: #fffefa;
+  transform: translateY(-1px);
 }
 
 .eyebrow {
@@ -90,7 +96,7 @@ a:focus-visible {
   justify-content: center;
   gap: 0.5rem;
   border: 1px solid var(--forest);
-  border-radius: 0.5rem;
+  border-radius: 0.625rem;
   background: var(--forest);
   padding: 0.55rem 0.9rem;
   color: #fff;
@@ -102,8 +108,8 @@ a:focus-visible {
 }
 
 .primary-button:hover {
-  border-color: #0e3b2b;
-  background: #0e3b2b;
+  border-color: var(--forest-deep);
+  background: var(--forest-deep);
 }
 
 .primary-button:disabled {
@@ -118,8 +124,8 @@ a:focus-visible {
   justify-content: center;
   gap: 0.5rem;
   border: 1px solid var(--line-strong);
-  border-radius: 0.5rem;
-  background: #fff;
+  border-radius: 0.625rem;
+  background: var(--surface);
   padding: 0.55rem 0.9rem;
   color: var(--ink);
   font-size: 0.8125rem;
@@ -130,7 +136,7 @@ a:focus-visible {
 }
 
 .secondary-button:hover {
-  border-color: #b9bdb7;
+  border-color: #b8aa98;
   background: var(--surface-soft);
 }
 
@@ -138,8 +144,8 @@ a:focus-visible {
   width: 100%;
   min-height: 2.625rem;
   border: 1px solid var(--line-strong);
-  border-radius: 0.5rem;
-  background: #fff;
+  border-radius: 0.625rem;
+  background: var(--surface);
   padding: 0.6rem 0.75rem;
   color: var(--ink);
   font-size: 0.875rem;
@@ -149,7 +155,7 @@ a:focus-visible {
 }
 
 .form-control:hover {
-  border-color: #aeb4ad;
+  border-color: #ad9f8c;
 }
 
 .form-control:focus {
@@ -160,7 +166,7 @@ a:focus-visible {
 
 .form-control:disabled {
   cursor: not-allowed;
-  background: #f1f2ef;
+  background: var(--surface-soft);
   color: #777e79;
 }
 
@@ -193,6 +199,6 @@ a:focus-visible {
 ::-webkit-scrollbar-thumb {
   border: 3px solid transparent;
   border-radius: 999px;
-  background: #bfc3bd;
+  background: #bdb3a4;
   background-clip: padding-box;
 }

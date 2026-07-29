@@ -23,6 +23,7 @@ export default function ApprovalsPage() {
       <main className="mx-auto max-w-[1240px] px-5 py-7 sm:px-8 sm:py-9 xl:px-10">
         <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
+            <p className="eyebrow text-[#8a6a51]">Kontrol owner</p>
             <h1 className="text-2xl font-semibold tracking-[-0.03em] sm:text-[28px]">
               Approval
             </h1>
@@ -51,7 +52,7 @@ export default function ApprovalsPage() {
         </section>
 
         <section className="app-card mt-5 overflow-hidden">
-          <div className="flex items-center justify-between border-b border-[#e3e4e1] px-4 py-3.5 sm:px-5">
+          <div className="flex items-center justify-between border-b border-[#e4dacd] bg-[#fffaf3] px-4 py-3.5 sm:px-5">
             <div>
               <h2 className="text-sm font-semibold">Riwayat keputusan</h2>
               <p className="mt-0.5 text-xs text-[#777e79]">
@@ -70,14 +71,14 @@ export default function ApprovalsPage() {
             </div>
           ) : items.length ? (
             <>
-              <div className="hidden grid-cols-[minmax(280px,1fr)_140px_170px_115px_18px] gap-4 border-b border-[#e3e4e1] bg-[#fafaf8] px-4 py-2.5 text-[11px] font-medium text-[#777e79] md:grid">
+              <div className="hidden grid-cols-[minmax(280px,1fr)_140px_170px_115px_18px] gap-4 border-b border-[#e4dacd] bg-[#f8f2e9] px-4 py-2.5 text-[11px] font-medium text-[#777e79] md:grid">
                 <span>Permintaan</span>
                 <span>Risiko</span>
                 <span>Waktu</span>
                 <span>Status</span>
                 <span />
               </div>
-              <div className="divide-y divide-[#e6e7e4]">
+              <div className="divide-y divide-[#eadfd2]">
                 {items.map((approval) => (
                   <ApprovalRow approval={approval} key={approval.id} />
                 ))}
@@ -86,7 +87,7 @@ export default function ApprovalsPage() {
           ) : (
             <div className="grid min-h-72 place-items-center p-8 text-center">
               <div>
-                <span className="mx-auto grid h-11 w-11 place-items-center rounded-lg border border-[#dfe1dd] bg-[#f4f5f2] text-[#58635d]">
+                <span className="mx-auto grid h-11 w-11 place-items-center rounded-lg border border-[#dfd5c7] bg-[#f3ece2] text-[#58635d]">
                   <ShieldIcon />
                 </span>
                 <p className="mt-4 text-sm font-semibold">Tidak ada approval</p>
@@ -105,7 +106,7 @@ export default function ApprovalsPage() {
 function ApprovalRow({ approval }: { approval: Approval }) {
   return (
     <Link
-      className="group grid gap-3 px-4 py-4 transition hover:bg-[#fafbf9] md:grid-cols-[minmax(280px,1fr)_140px_170px_115px_18px] md:items-center"
+      className="group grid gap-3 px-4 py-4 transition hover:bg-[#fbf6ee] md:grid-cols-[minmax(280px,1fr)_140px_170px_115px_18px] md:items-center"
       href={`/inbox/${approval.document_id}`}
     >
       <div className="min-w-0">
@@ -166,7 +167,7 @@ function ApprovalStat({
   className?: string;
 }) {
   return (
-    <div className={`border-[#e3e4e1] px-5 py-4 ${className}`}>
+    <div className={`border-[#e4dacd] px-5 py-4 ${className}`}>
       <p className="text-xs text-[#69716c]">{label}</p>
       <p className="tabular-nums mt-1 text-xl font-semibold">{value}</p>
     </div>

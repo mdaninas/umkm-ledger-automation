@@ -165,7 +165,7 @@ function DocumentPreview({
             Pratinjau privat · hanya untuk workspace ini
           </p>
         </div>
-        <span className="rounded-md border border-[#dfe1dd] bg-[#f7f7f5] px-2 py-1 text-[10px] font-medium uppercase tracking-wide text-[#69716c]">
+        <span className="rounded-md border border-[#dfd5c7] bg-[#f3eee5] px-2 py-1 text-[10px] font-medium uppercase tracking-wide text-[#69716c]">
           {document.mime_type.replace("application/", "")}
         </span>
       </div>
@@ -451,9 +451,9 @@ function ReviewPanel({
                 {document.journal.balanced ? "Seimbang" : "Tidak seimbang"}
               </span>
             </div>
-            <div className="mt-5 overflow-x-auto rounded-lg border border-[#dfe1dd]">
+            <div className="mt-5 overflow-x-auto rounded-lg border border-[#dfd5c7]">
               <table className="w-full text-left text-sm">
-                <thead className="bg-[#fafaf8] text-[10px] font-medium text-[#777e79]">
+                <thead className="bg-[#f8f2e9] text-[10px] font-medium text-[#777e79]">
                   <tr>
                     <th className="px-3 py-2.5">Akun</th>
                     <th className="px-3 py-2.5 text-right">Debit</th>
@@ -462,7 +462,7 @@ function ReviewPanel({
                 </thead>
                 <tbody>
                   {document.journal.lines.map((line) => (
-                    <tr className="border-t border-[#e6e7e4]" key={line.id}>
+                    <tr className="border-t border-[#eadfd2]" key={line.id}>
                       <td className="px-3 py-3">
                         {line.account.code} · {line.account.name}
                       </td>
@@ -479,7 +479,7 @@ function ReviewPanel({
             </div>
           </div>
           {document.status === "READY_TO_POST" ? (
-            <div className="border-t border-[#e3e4e1] bg-[#fafaf8] p-4">
+            <div className="border-t border-[#e4dacd] bg-[#f8f2e9] p-4">
               <button
                 className="primary-button w-full"
                 disabled={post.isPending || !document.journal.balanced}
@@ -512,7 +512,7 @@ function WorkflowCard({ document }: { document: DocumentDetail }) {
       <p className="mt-1 truncate text-xs text-[#777e79]">
         ID: {document.latest_workflow?.correlation_id ?? "—"}
       </p>
-      <ol className="mt-4 divide-y divide-[#e6e7e4] border-t border-[#e6e7e4]">
+      <ol className="mt-4 divide-y divide-[#eadfd2] border-t border-[#eadfd2]">
         {document.latest_workflow?.steps.map((step) => (
           <li
             className="flex items-center justify-between gap-4 py-3 text-sm"

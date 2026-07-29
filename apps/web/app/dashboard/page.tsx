@@ -54,6 +54,7 @@ export default function DashboardPage() {
       <main className="mx-auto max-w-[1240px] px-5 py-7 sm:px-8 sm:py-9 xl:px-10">
         <header className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
           <div>
+            <p className="eyebrow text-[#8a6a51]">Workspace keuangan</p>
             <h1 className="text-2xl font-semibold tracking-[-0.03em] sm:text-[28px]">
               Ringkasan
             </h1>
@@ -72,16 +73,24 @@ export default function DashboardPage() {
           </div>
         </header>
 
-        <section className="app-card mt-7 overflow-hidden">
-          <div className="flex items-center justify-between border-b border-[#e3e4e1] px-5 py-4 sm:px-6">
+        <section className="relative mt-7 overflow-hidden rounded-2xl border border-[#31584a] bg-[#173f32] text-[#fffaf0] shadow-[0_14px_30px_rgb(31_55_45/0.12)]">
+          <span
+            aria-hidden="true"
+            className="absolute -right-16 -top-24 h-64 w-64 rounded-full bg-[#d56f3a] opacity-90"
+          />
+          <span
+            aria-hidden="true"
+            className="absolute -right-2 top-9 h-48 w-48 rounded-full border-[34px] border-[#f0c58f] opacity-20"
+          />
+          <div className="relative flex items-center justify-between border-b border-[#426659] px-5 py-4 sm:px-6">
             <div>
               <h2 className="text-sm font-semibold">Posisi keuangan</h2>
-              <p className="mt-0.5 text-xs text-[#777e79]">Nilai jurnal final</p>
+              <p className="mt-0.5 text-xs text-[#afc3ba]">Nilai jurnal final</p>
             </div>
-            <div className="flex items-center gap-2 text-xs text-[#69716c]">
+            <div className="flex items-center gap-2 rounded-full bg-[#0f3027]/60 px-3 py-1.5 text-xs text-[#d9e5df]">
               <span
                 className={`status-dot ${
-                  healthy ? "text-[#2d9169]" : "text-[#bd7a20]"
+                  healthy ? "text-[#df9a60]" : "text-[#f0c58f]"
                 }`}
               />
               {health.isPending
@@ -91,16 +100,16 @@ export default function DashboardPage() {
                   : "Sistem terbatas"}
             </div>
           </div>
-          <div className="grid sm:grid-cols-2 xl:grid-cols-4">
+          <div className="relative grid sm:grid-cols-2 xl:grid-cols-4">
             {balances.map((item, index) => (
               <div
                 className={`px-5 py-5 sm:px-6 ${
-                  index > 0 ? "border-t border-[#e3e4e1] sm:border-l" : ""
+                  index > 0 ? "border-t border-[#426659] sm:border-l" : ""
                 } ${index === 2 ? "sm:border-t xl:border-t-0" : ""}`}
                 key={item.label}
               >
-                <p className="text-xs text-[#69716c]">{item.label}</p>
-                <p className="tabular-nums mt-2 truncate text-xl font-semibold tracking-[-0.025em]">
+                <p className="text-xs text-[#afc3ba]">{item.label}</p>
+                <p className="tabular-nums mt-2 truncate text-xl font-semibold tracking-[-0.025em] text-white">
                   {item.value}
                 </p>
               </div>
@@ -120,8 +129,8 @@ export default function DashboardPage() {
               <span
                 className={`rounded-md px-2 py-1 text-xs font-medium ${
                   net >= 0
-                    ? "bg-[#e8f3ed] text-[#176846]"
-                    : "bg-[#f8eae7] text-[#963d32]"
+                    ? "bg-[#e5f0e9] text-[#176846]"
+                    : "bg-[#f7e3da] text-[#963d32]"
                 }`}
               >
                 Neto {summary.data ? rupiah.format(net) : "—"}
@@ -142,24 +151,27 @@ export default function DashboardPage() {
               />
             </div>
 
-            <div className="mt-8 border-t border-[#e3e4e1] pt-4 text-xs leading-5 text-[#69716c]">
+            <div className="mt-8 border-t border-[#e4dacd] pt-4 text-xs leading-5 text-[#69716c]">
               Hanya transaksi yang sudah ditinjau dan diposting yang dihitung.
             </div>
           </article>
 
-          <aside className="app-card overflow-hidden">
-            <div className="border-b border-[#e3e4e1] px-5 py-4">
-              <h2 className="text-sm font-semibold">Perlu perhatian</h2>
+          <aside className="overflow-hidden rounded-[14px] border border-[#e2bfaa] bg-[#f7e3d5] shadow-[0_1px_2px_rgb(56_43_29/0.035)]">
+            <div className="flex items-center justify-between border-b border-[#e6c6b3] px-5 py-4">
+              <h2 className="text-sm font-semibold text-[#6f321d]">Perlu perhatian</h2>
+              <span className="grid h-8 w-8 place-items-center rounded-full bg-[#d56f3a] text-sm text-white">
+                !
+              </span>
             </div>
             <div className="px-5 py-5">
-              <p className="tabular-nums text-4xl font-semibold tracking-[-0.04em]">
+              <p className="tabular-nums text-4xl font-semibold tracking-[-0.04em] text-[#5b2d1d]">
                 {summary.data?.needs_review_count ?? "—"}
               </p>
-              <p className="mt-1 text-sm text-[#69716c]">
+              <p className="mt-1 text-sm text-[#86543d]">
                 dokumen menunggu peninjauan
               </p>
               <Link
-                className="mt-5 flex items-center justify-between border-t border-[#e3e4e1] pt-4 text-sm font-medium text-[#174d3a]"
+                className="mt-5 flex items-center justify-between border-t border-[#e0bba6] pt-4 text-sm font-semibold text-[#74361f]"
                 href="/inbox?status=NEEDS_REVIEW"
               >
                 Tinjau dokumen
@@ -170,7 +182,7 @@ export default function DashboardPage() {
         </section>
 
         <section className="app-card mt-5 overflow-hidden">
-          <div className="flex items-center justify-between border-b border-[#e3e4e1] px-5 py-4 sm:px-6">
+          <div className="flex items-center justify-between border-b border-[#e4dacd] px-5 py-4 sm:px-6">
             <div>
               <h2 className="text-sm font-semibold">Aktivitas pembukuan</h2>
               <p className="mt-0.5 text-xs text-[#777e79]">
@@ -181,7 +193,7 @@ export default function DashboardPage() {
               Lihat semua
             </Link>
           </div>
-          <div className="divide-y divide-[#e3e4e1]">
+          <div className="divide-y divide-[#e4dacd]">
             <ActivityRow
               description="Menunggu koreksi atau konfirmasi owner"
               label="Dokumen perlu ditinjau"
@@ -221,10 +233,10 @@ function ComparisonBar({
         <span className="text-[#5f6762]">{label}</span>
         <span className="tabular-nums font-medium">{rupiah.format(value)}</span>
       </div>
-      <div className="h-2 overflow-hidden rounded-sm bg-[#eceeeb]">
+      <div className="h-2.5 overflow-hidden rounded-full bg-[#eee7dc]">
         <div
-          className={`h-full rounded-sm ${
-            tone === "income" ? "bg-[#367b61]" : "bg-[#a8aaa5]"
+          className={`h-full rounded-full ${
+            tone === "income" ? "bg-[#2c7356]" : "bg-[#d56f3a]"
           }`}
           style={{ width: `${width}%` }}
         />

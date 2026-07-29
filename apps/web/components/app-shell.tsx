@@ -52,9 +52,9 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   if (!token || profile.isPending || !profile.data) {
     return (
-      <main className="grid min-h-screen place-items-center bg-[#f7f7f5] p-6">
+      <main className="grid min-h-screen place-items-center bg-[#f3eee5] p-6">
         <div className="text-center" role="status">
-          <div className="mx-auto h-7 w-7 animate-spin rounded-full border-2 border-[#d7dad5] border-t-[#174d3a]" />
+          <div className="mx-auto h-7 w-7 animate-spin rounded-full border-2 border-[#d8cec0] border-t-[#173f32]" />
           <p className="mt-3 text-sm font-medium">Menyiapkan ruang kerja…</p>
         </div>
       </main>
@@ -73,43 +73,51 @@ export function AppShell({ children }: { children: ReactNode }) {
     .join("");
 
   return (
-    <div className="min-h-screen lg:grid lg:grid-cols-[224px_minmax(0,1fr)]">
-      <aside className="sticky top-0 hidden h-screen border-r border-[#dedfdb] bg-[#f1f2ef] lg:flex lg:flex-col">
+    <div className="min-h-screen lg:grid lg:grid-cols-[244px_minmax(0,1fr)]">
+      <aside className="sticky top-0 hidden h-screen overflow-hidden border-r border-[#2b5143] bg-[#143a2f] text-[#f8f1e5] lg:flex lg:flex-col">
         <Link
-          className="flex h-16 items-center gap-2.5 border-b border-[#dedfdb] px-4"
+          className="flex h-[72px] items-center gap-3 border-b border-[#315447] px-4"
           href="/dashboard"
         >
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-[#ead9b9] bg-[#fff5e3]">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[#dfc28f] bg-[#f7ead3] shadow-[0_4px_12px_rgb(5_23_18/0.18)]">
             <Image
               alt=""
-              className="h-8 w-8 object-contain"
-              height={32}
+              className="h-9 w-9 object-contain"
+              height={36}
               priority
               src="/brand/kopi-arunika-mark.png"
-              width={32}
+              width={36}
             />
           </span>
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold">{profile.data.business.name}</p>
-            <p className="text-[11px] text-[#777e79]">Finance workspace</p>
+            <p className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.13em] text-[#a9beb5]">
+              Finance workspace
+            </p>
           </div>
         </Link>
 
-        <nav className="space-y-1 p-3">
+        <div className="px-5 pb-2 pt-6 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#7fa093]">
+          Workspace
+        </div>
+        <nav className="space-y-1 px-3">
           {navigation.map((item) => {
             const active =
               pathname === item.href ||
               (item.href !== "/dashboard" && pathname.startsWith(item.href));
             return (
               <Link
-                className={`flex h-10 items-center gap-3 rounded-lg px-3 text-sm transition ${
+                className={`relative flex h-11 items-center gap-3 rounded-xl px-3 text-sm transition ${
                   active
-                    ? "border border-[#d8dad5] bg-white font-semibold text-[#202522]"
-                    : "font-medium text-[#666e69] hover:bg-[#e8e9e5] hover:text-[#202522]"
+                    ? "bg-[#f4eadb] font-semibold text-[#173f32] shadow-[0_3px_10px_rgb(6_26_20/0.12)]"
+                    : "font-medium text-[#bed0c8] hover:bg-[#20483a] hover:text-white"
                 }`}
                 href={item.href}
                 key={item.href}
               >
+                {active ? (
+                  <span className="absolute -left-0.5 h-5 w-1 rounded-full bg-[#d56f3a]" />
+                ) : null}
                 <NavIcon active={active} name={item.icon} />
                 {item.label}
               </Link>
@@ -117,24 +125,24 @@ export function AppShell({ children }: { children: ReactNode }) {
           })}
         </nav>
 
-        <div className="mt-auto border-t border-[#dedfdb] p-3">
-          <div className="mb-3 flex items-center gap-2 px-2 text-[11px] text-[#69716c]">
-            <span className="status-dot text-[#2d9169]" />
+        <div className="mt-auto border-t border-[#315447] p-3">
+          <div className="mb-2 flex items-center gap-2 px-2 py-1 text-[11px] text-[#9cb5aa]">
+            <span className="status-dot text-[#e28a53]" />
             Sistem operasional
           </div>
-          <div className="flex items-center gap-2.5 rounded-lg px-2 py-2">
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#dfe5e0] text-[11px] font-semibold text-[#334139]">
+          <div className="flex items-center gap-2.5 rounded-xl bg-[#103328] px-2 py-2.5">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#e9d7bd] text-[11px] font-semibold text-[#173f32]">
               {initials}
             </span>
             <div className="min-w-0 flex-1">
               <p className="truncate text-xs font-semibold">
                 {profile.data.user.display_name}
               </p>
-              <p className="text-[10px] capitalize text-[#777e79]">{profile.data.role}</p>
+              <p className="text-[10px] capitalize text-[#8eaa9e]">{profile.data.role}</p>
             </div>
             <button
               aria-label="Keluar"
-              className="grid h-8 w-8 place-items-center rounded-md text-[#747b76] hover:bg-[#e3e5e1] hover:text-[#202522]"
+              className="grid h-8 w-8 place-items-center rounded-md text-[#96aea4] hover:bg-[#244c3e] hover:text-white"
               onClick={logout}
               type="button"
             >
@@ -145,10 +153,10 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="min-w-0">
-        <header className="sticky top-0 z-30 border-b border-[#dedfdb] bg-[#f7f7f5]/95 backdrop-blur lg:hidden">
+        <header className="sticky top-0 z-30 border-b border-[#d9cebf] bg-[#f3eee5]/95 backdrop-blur lg:hidden">
           <div className="flex h-14 items-center justify-between px-4">
             <Link className="flex items-center gap-2.5" href="/dashboard">
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-[#ead9b9] bg-[#fff5e3]">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-[#dfc28f] bg-[#f7ead3]">
                 <Image
                   alt=""
                   className="h-8 w-8 object-contain"
@@ -163,7 +171,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               </p>
             </Link>
             <button
-              className="text-xs font-medium text-[#69716c]"
+              className="text-xs font-medium text-[#667169]"
               onClick={logout}
               type="button"
             >
@@ -179,8 +187,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Link
                   className={`border-b-2 px-3 py-2 text-xs font-medium ${
                     active
-                      ? "border-[#174d3a] text-[#174d3a]"
-                      : "border-transparent text-[#69716c]"
+                      ? "border-[#d56f3a] text-[#173f32]"
+                      : "border-transparent text-[#667169]"
                   }`}
                   href={item.href}
                   key={item.href}
