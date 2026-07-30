@@ -85,7 +85,10 @@ export default function InboxPage() {
           </label>
         </header>
 
-        <section className="app-card mt-7 grid overflow-hidden sm:grid-cols-3">
+        <section
+          aria-label="Ringkasan dokumen"
+          className="app-card mt-7 grid overflow-hidden sm:grid-cols-3"
+        >
           <SummaryItem label="Total dokumen" value={documents.data?.total ?? "—"} />
           <SummaryItem
             className="border-t sm:border-l sm:border-t-0"
@@ -110,7 +113,7 @@ export default function InboxPage() {
         ) : null}
 
         <section className="app-card mt-5 overflow-hidden">
-          <div className="flex flex-col gap-3 border-b border-[#e4dacd] bg-[#fffaf3] p-3 sm:flex-row sm:items-center">
+          <div className="flex flex-col gap-3 border-b bg-muted/40 p-3 sm:flex-row sm:items-center">
             <label className="relative flex-1">
               <SearchIcon />
               <span className="sr-only">Cari dokumen</span>
@@ -147,22 +150,22 @@ export default function InboxPage() {
             </div>
           ) : items.length ? (
             <div>
-              <div className="hidden grid-cols-[minmax(250px,1.5fr)_minmax(140px,.65fr)_minmax(150px,.65fr)_145px_18px] gap-4 border-b border-[#e4dacd] bg-[#f8f2e9] px-4 py-2.5 text-[11px] font-medium text-[#777e79] lg:grid">
+              <div className="hidden grid-cols-[minmax(250px,1.5fr)_minmax(140px,.65fr)_minmax(150px,.65fr)_145px_18px] gap-4 border-b bg-muted/55 px-4 py-2.5 text-[11px] font-medium text-muted-foreground lg:grid">
                 <span>Dokumen</span>
                 <span>Tanggal</span>
                 <span className="text-right">Nominal</span>
                 <span>Status</span>
                 <span />
               </div>
-              <div className="divide-y divide-[#eadfd2]">
+              <div className="divide-y">
                 {items.map((document) => (
                   <Link
-                    className="group grid gap-3 px-4 py-3.5 transition hover:bg-[#fbf6ee] lg:grid-cols-[minmax(250px,1.5fr)_minmax(140px,.65fr)_minmax(150px,.65fr)_145px_18px] lg:items-center"
+                    className="group grid gap-3 px-4 py-3.5 transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70 lg:grid-cols-[minmax(250px,1.5fr)_minmax(140px,.65fr)_minmax(150px,.65fr)_145px_18px] lg:items-center"
                     href={`/inbox/${document.id}`}
                     key={document.id}
                   >
                     <div className="flex min-w-0 items-center gap-3">
-                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-[#dfd5c7] bg-[#f3ece2] text-[#58635d]">
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border bg-muted text-muted-foreground">
                         <FileIcon type={document.mime_type} />
                       </span>
                       <div className="min-w-0">
@@ -232,9 +235,11 @@ function SummaryItem({
   className?: string;
 }) {
   return (
-    <div className={`border-[#e4dacd] px-5 py-4 ${className}`}>
-      <p className="text-xs text-[#69716c]">{label}</p>
-      <p className="tabular-nums mt-1 text-xl font-semibold">{value}</p>
+    <div className={`border-border px-5 py-5 ${className}`}>
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <p className="tabular-nums mt-1.5 text-2xl font-semibold tracking-[-0.035em]">
+        {value}
+      </p>
     </div>
   );
 }

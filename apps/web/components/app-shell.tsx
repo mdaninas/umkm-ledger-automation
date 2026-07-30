@@ -1,11 +1,30 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import {
+  Activity,
+  FileStack,
+  Landmark,
+  LayoutDashboard,
+  LoaderCircle,
+  LogOut,
+  ReceiptText,
+  ShieldCheck,
+  type LucideIcon,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ReactNode, useEffect, useSyncExternalStore } from "react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { getProfile, sessionStorage } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 const subscribeToSession = (onStoreChange: () => void) => {
   window.addEventListener("storage", onStoreChange);
@@ -24,12 +43,44 @@ export function useSessionToken(): string | null {
   );
 }
 
-const navigation = [
-  { href: "/dashboard", label: "Ringkasan", icon: "dashboard" },
-  { href: "/inbox", label: "Dokumen", icon: "inbox" },
-  { href: "/banking", label: "Mutasi bank", icon: "bank" },
-  { href: "/invoices", label: "Piutang", icon: "invoice" },
-  { href: "/approvals", label: "Approval", icon: "approval" },
+type NavigationItem = {
+  href: string;
+  label: string;
+  mobileLabel: string;
+  icon: LucideIcon;
+};
+
+const navigation: NavigationItem[] = [
+  {
+    href: "/dashboard",
+    label: "Ringkasan",
+    mobileLabel: "Ringkasan",
+    icon: LayoutDashboard,
+  },
+  {
+    href: "/inbox",
+    label: "Dokumen",
+    mobileLabel: "Dokumen",
+    icon: FileStack,
+  },
+  {
+    href: "/banking",
+    label: "Mutasi bank",
+    mobileLabel: "Mutasi",
+    icon: Landmark,
+  },
+  {
+    href: "/invoices",
+    label: "Piutang",
+    mobileLabel: "Piutang",
+    icon: ReceiptText,
+  },
+  {
+    href: "/approvals",
+    label: "Approval",
+    mobileLabel: "Approval",
+    icon: ShieldCheck,
+  },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -54,10 +105,15 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   if (!token || profile.isPending || !profile.data) {
     return (
-      <main className="grid min-h-screen place-items-center bg-[#f3eee5] p-6">
+      <main className="grid min-h-screen place-items-center bg-background p-6">
         <div className="text-center" role="status">
-          <div className="mx-auto h-7 w-7 animate-spin rounded-full border-2 border-[#d8cec0] border-t-[#173f32]" />
+          <span className="mx-auto grid size-10 place-items-center rounded-xl border bg-card shadow-sm">
+            <LoaderCircle className="size-5 animate-spin text-primary" />
+          </span>
           <p className="mt-3 text-sm font-medium">Menyiapkan ruang kerja…</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Memuat data keuangan terbaru
+          </p>
         </div>
       </main>
     );
@@ -75,16 +131,18 @@ export function AppShell({ children }: { children: ReactNode }) {
     .join("");
 
   return (
-    <div className="min-h-screen lg:grid lg:grid-cols-[244px_minmax(0,1fr)]">
-      <aside className="sticky top-0 hidden h-screen overflow-hidden border-r border-[#2b5143] bg-[#143a2f] text-[#f8f1e5] lg:flex lg:flex-col">
+    <div className="min-h-screen bg-background lg:grid lg:grid-cols-[260px_minmax(0,1fr)]">
+      <aside className="sticky top-0 hidden h-screen overflow-hidden border-r border-sidebar-border bg-sidebar text-sidebar-foreground lg:flex lg:flex-col">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-52 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.08),transparent_65%)]" />
+
         <Link
-          className="flex h-[72px] items-center gap-3 border-b border-[#315447] px-4"
+          className="relative flex h-[78px] items-center gap-3 border-b border-sidebar-border px-5"
           href="/dashboard"
         >
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[#dfc28f] bg-[#f7ead3] shadow-[0_4px_12px_rgb(5_23_18/0.18)]">
+          <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-[#dfc28f] bg-[#f7ead3] shadow-[0_4px_14px_rgb(4_26_19/0.2)]">
             <Image
               alt=""
-              className="h-9 w-9 object-contain"
+              className="size-9 object-contain"
               height={36}
               priority
               src="/brand/kopi-arunika-mark.png"
@@ -92,110 +150,154 @@ export function AppShell({ children }: { children: ReactNode }) {
             />
           </span>
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">{profile.data.business.name}</p>
-            <p className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.13em] text-[#a9beb5]">
+            <p className="truncate text-sm font-semibold tracking-[-0.01em]">
+              {profile.data.business.name}
+            </p>
+            <p className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-sidebar-foreground/55">
               Finance workspace
             </p>
           </div>
         </Link>
 
-        <div className="px-5 pb-2 pt-6 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#7fa093]">
-          Workspace
+        <div className="relative px-4 pb-2 pt-6 text-[10px] font-semibold uppercase tracking-[0.16em] text-sidebar-foreground/40">
+          Operasional
         </div>
-        <nav className="space-y-1 px-3">
+        <nav className="relative space-y-1 px-3">
           {navigation.map((item) => {
             const active =
               pathname === item.href ||
               (item.href !== "/dashboard" && pathname.startsWith(item.href));
+            const Icon = item.icon;
+
             return (
               <Link
-                className={`relative flex h-11 items-center gap-3 rounded-xl px-3 text-sm transition ${
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "group relative flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors",
                   active
-                    ? "bg-[#f4eadb] font-semibold text-[#173f32] shadow-[0_3px_10px_rgb(6_26_20/0.12)]"
-                    : "font-medium text-[#bed0c8] hover:bg-[#20483a] hover:text-white"
-                }`}
+                    ? "bg-white/11 text-white shadow-[inset_0_0_0_1px_rgb(255_255_255/0.08)]"
+                    : "text-sidebar-foreground/66 hover:bg-sidebar-accent hover:text-white",
+                )}
                 href={item.href}
                 key={item.href}
               >
-                {active ? (
-                  <span className="absolute -left-0.5 h-5 w-1 rounded-full bg-[#d56f3a]" />
-                ) : null}
-                <NavIcon active={active} name={item.icon} />
+                <span
+                  className={cn(
+                    "absolute left-0 h-5 w-0.5 rounded-full bg-[#e3834e] opacity-0 transition-opacity",
+                    active && "opacity-100",
+                  )}
+                />
+                <Icon
+                  className={cn(
+                    "size-[17px] shrink-0 transition-colors",
+                    active
+                      ? "text-[#f0a16f]"
+                      : "text-sidebar-foreground/50 group-hover:text-sidebar-foreground/85",
+                  )}
+                  strokeWidth={1.8}
+                />
                 {item.label}
               </Link>
             );
           })}
         </nav>
 
-        <div className="mt-auto border-t border-[#315447] p-3">
-          <div className="mb-2 flex items-center gap-2 px-2 py-1 text-[11px] text-[#9cb5aa]">
-            <span className="status-dot text-[#e28a53]" />
+        <div className="relative mt-auto border-t border-sidebar-border p-3">
+          <div className="mb-2 flex items-center gap-2 px-2 py-1.5 text-[11px] text-sidebar-foreground/55">
+            <Activity className="size-3.5 text-[#ef9460]" />
             Sistem operasional
           </div>
-          <div className="flex items-center gap-2.5 rounded-xl bg-[#103328] px-2 py-2.5">
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#e9d7bd] text-[11px] font-semibold text-[#173f32]">
-              {initials}
-            </span>
+          <div className="flex items-center gap-2.5 rounded-xl border border-white/[0.06] bg-black/10 p-2">
+            <Avatar className="size-9 border border-white/10">
+              <AvatarFallback className="bg-[#ead8bc] text-[11px] font-semibold text-[#173f32]">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
             <div className="min-w-0 flex-1">
               <p className="truncate text-xs font-semibold">
                 {profile.data.user.display_name}
               </p>
-              <p className="text-[10px] capitalize text-[#8eaa9e]">{profile.data.role}</p>
+              <p className="mt-0.5 text-[10px] capitalize text-sidebar-foreground/45">
+                {profile.data.role}
+              </p>
             </div>
-            <button
-              aria-label="Keluar"
-              className="grid h-8 w-8 place-items-center rounded-md text-[#96aea4] hover:bg-[#244c3e] hover:text-white"
-              onClick={logout}
-              type="button"
-            >
-              <LogoutIcon />
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  aria-label="Keluar"
+                  className="text-sidebar-foreground/55 hover:bg-white/10 hover:text-white"
+                  onClick={logout}
+                  size="icon"
+                  type="button"
+                  variant="ghost"
+                >
+                  <LogOut />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">Keluar</TooltipContent>
+            </Tooltip>
           </div>
         </div>
       </aside>
 
       <div className="min-w-0">
-        <header className="sticky top-0 z-30 border-b border-[#d9cebf] bg-[#f3eee5]/95 backdrop-blur lg:hidden">
+        <header className="sticky top-0 z-30 border-b bg-card/95 backdrop-blur lg:hidden">
           <div className="flex h-14 items-center justify-between px-4">
-            <Link className="flex items-center gap-2.5" href="/dashboard">
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-[#dfc28f] bg-[#f7ead3]">
+            <Link className="flex min-w-0 items-center gap-2.5" href="/dashboard">
+              <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-[#dfc28f] bg-[#f7ead3]">
                 <Image
                   alt=""
-                  className="h-8 w-8 object-contain"
+                  className="size-8 object-contain"
                   height={32}
                   priority
                   src="/brand/kopi-arunika-mark.png"
                   width={32}
                 />
               </span>
-              <p className="max-w-44 truncate text-sm font-semibold">
-                {profile.data.business.name}
-              </p>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold">
+                  {profile.data.business.name}
+                </p>
+                <p className="text-[9px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                  Finance workspace
+                </p>
+              </div>
             </Link>
-            <button
-              className="text-xs font-medium text-[#667169]"
+            <Button
+              aria-label="Keluar"
               onClick={logout}
+              size="icon"
               type="button"
+              variant="ghost"
             >
-              Keluar
-            </button>
+              <LogOut />
+            </Button>
           </div>
-          <nav className="flex overflow-x-auto px-2">
+          <nav className="grid grid-cols-5 px-1">
             {navigation.map((item) => {
               const active =
                 pathname === item.href ||
                 (item.href !== "/dashboard" && pathname.startsWith(item.href));
+              const Icon = item.icon;
+
               return (
                 <Link
-                  className={`border-b-2 px-3 py-2 text-xs font-medium ${
-                    active
-                      ? "border-[#d56f3a] text-[#173f32]"
-                      : "border-transparent text-[#667169]"
-                  }`}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "relative flex min-w-0 flex-col items-center gap-1 px-1 py-2 text-[10px] font-medium transition-colors",
+                    active ? "text-primary" : "text-muted-foreground",
+                  )}
                   href={item.href}
                   key={item.href}
                 >
-                  {item.label}
+                  <Icon className="size-4" strokeWidth={active ? 2.1 : 1.8} />
+                  <span className="truncate">{item.mobileLabel}</span>
+                  <span
+                    className={cn(
+                      "absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-[#d8753f] opacity-0",
+                      active && "opacity-100",
+                    )}
+                  />
                 </Link>
               );
             })}
@@ -204,55 +306,5 @@ export function AppShell({ children }: { children: ReactNode }) {
         {children}
       </div>
     </div>
-  );
-}
-
-function NavIcon({ name, active }: { name: string; active: boolean }) {
-  const stroke = active ? "#174d3a" : "currentColor";
-  return (
-    <svg
-      aria-hidden="true"
-      className="h-4 w-4 shrink-0"
-      fill="none"
-      viewBox="0 0 24 24"
-    >
-      {name === "dashboard" ? (
-        <>
-          <rect height="7" rx="1.5" stroke={stroke} strokeWidth="1.7" width="7" x="3" y="3" />
-          <rect height="7" rx="1.5" stroke={stroke} strokeWidth="1.7" width="7" x="14" y="3" />
-          <rect height="7" rx="1.5" stroke={stroke} strokeWidth="1.7" width="7" x="3" y="14" />
-          <rect height="7" rx="1.5" stroke={stroke} strokeWidth="1.7" width="7" x="14" y="14" />
-        </>
-      ) : name === "inbox" ? (
-        <>
-          <path d="M4 4h16v16H4z" stroke={stroke} strokeLinejoin="round" strokeWidth="1.7" />
-          <path d="M4 14h4l2 3h4l2-3h4" stroke={stroke} strokeLinejoin="round" strokeWidth="1.7" />
-        </>
-      ) : name === "bank" ? (
-        <>
-          <path d="m3 9 9-5 9 5" stroke={stroke} strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" />
-          <path d="M5 10h14M6 10v7m4-7v7m4-7v7m4-7v7M4 20h16" stroke={stroke} strokeLinecap="round" strokeWidth="1.7" />
-        </>
-      ) : name === "invoice" ? (
-        <>
-          <path d="M6 3h9l3 3v15l-3-1.5L12 21l-3-1.5L6 21V3Z" stroke={stroke} strokeLinejoin="round" strokeWidth="1.7" />
-          <path d="M9 9h6M9 13h6M9 17h3" stroke={stroke} strokeLinecap="round" strokeWidth="1.7" />
-        </>
-      ) : (
-        <>
-          <path d="M12 3 5 6v5c0 4.6 2.9 8.7 7 10 4.1-1.3 7-5.4 7-10V6l-7-3Z" stroke={stroke} strokeLinejoin="round" strokeWidth="1.7" />
-          <path d="m9 12 2 2 4-4" stroke={stroke} strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" />
-        </>
-      )}
-    </svg>
-  );
-}
-
-function LogoutIcon() {
-  return (
-    <svg aria-hidden="true" fill="none" height="16" viewBox="0 0 24 24" width="16">
-      <path d="M14 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2v-3" stroke="currentColor" strokeLinecap="round" strokeWidth="1.7" />
-      <path d="m10 12 3-3m-3 3 3 3m-3-3h11" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" />
-    </svg>
   );
 }

@@ -1,3 +1,4 @@
+import hashlib
 import uuid
 from datetime import date
 from decimal import Decimal
@@ -436,6 +437,12 @@ def test_bank_demo_seed_is_repeatable_on_a_clean_database(
             settings=settings,
             storage=client.app.state.storage,
         )
+        first_content = client.app.state.storage.get(first[0].storage_key)
+        client.app.state.storage.put(
+            first[0].storage_key,
+            b"%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF",
+            "application/pdf",
+        )
         second = seed_bank_demo(
             session,
             settings=settings,
@@ -448,3 +455,13 @@ def test_bank_demo_seed_is_repeatable_on_a_clean_database(
             select(func.count()).select_from(JournalEntry)
         )
         assert journal_count == 2
+        repaired_content = client.app.state.storage.get(second[0].storage_key)
+        assert repaired_content == first_content
+        assert repaired_content.startswith(b"%PDF-1.4")
+        assert b"/Type /Pages" in repaired_content
+        assert b"/Type /Page " in repaired_content
+        assert b"BANK-DEMO-001" in repaired_content
+        xref_offset = int(repaired_content.rsplit(b"startxref\n", maxsplit=1)[1].splitlines()[0])
+        assert repaired_content[xref_offset:].startswith(b"xref\n")
+        assert repaired_content.rstrip().endswith(b"%%EOF")
+        assert second[0].sha256 == hashlib.sha256(repaired_content).hexdigest()

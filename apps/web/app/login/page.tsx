@@ -1,8 +1,19 @@
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
+import { LoaderCircle, LockKeyhole, ShieldCheck } from "lucide-react";
 import Image from "next/image";
 import { FormEvent, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { ApiError, login, sessionStorage } from "@/lib/api";
 
 const demoAccount = {
@@ -35,8 +46,8 @@ export default function LoginPage() {
         : null;
 
   return (
-    <main className="min-h-screen bg-[#f3eee5] lg:grid lg:grid-cols-[minmax(0,1.08fr)_minmax(440px,0.92fr)]">
-      <section className="relative hidden min-h-screen overflow-hidden border-r border-[#d7cab9] lg:block">
+    <main className="min-h-screen bg-background lg:grid lg:grid-cols-[minmax(0,1.06fr)_minmax(440px,0.94fr)]">
+      <section className="relative hidden min-h-screen overflow-hidden border-r lg:block">
         <Image
           alt="Ilustrasi meja pembukuan Kopi Arunika dengan kopi, kuitansi, dan buku kas."
           className="object-cover object-top"
@@ -47,10 +58,10 @@ export default function LoginPage() {
         />
         <div className="absolute inset-x-0 top-0 z-10 p-10 xl:p-14">
           <div className="flex items-center gap-3">
-            <span className="grid h-11 w-11 place-items-center rounded-xl border border-[#d8bb88] bg-[#f8ead1]/90 shadow-[0_5px_18px_rgb(52_38_24/0.12)] backdrop-blur">
+            <span className="grid size-11 place-items-center rounded-xl border border-[#d8bb88] bg-[#f8ead1]/90 shadow-[0_5px_18px_rgb(52_38_24/0.12)] backdrop-blur">
               <Image
                 alt=""
-                className="h-10 w-10 object-contain"
+                className="size-10 object-contain"
                 height={40}
                 priority
                 src="/brand/kopi-arunika-mark.png"
@@ -59,12 +70,12 @@ export default function LoginPage() {
             </span>
             <div>
               <p className="text-sm font-semibold text-[#173f32]">Kopi Arunika</p>
-              <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-[#6f796f]">
+              <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-[#657269]">
                 Finance workspace
               </p>
             </div>
           </div>
-          <p className="mt-12 text-xs font-semibold uppercase tracking-[0.16em] text-[#a54f28]">
+          <p className="mt-12 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#a54f28]">
             Pembukuan yang tertelusur
           </p>
           <h1 className="mt-4 max-w-lg font-serif text-[44px] font-semibold leading-[1.04] tracking-[-0.045em] text-[#173f32] xl:text-[50px]">
@@ -73,95 +84,108 @@ export default function LoginPage() {
         </div>
       </section>
 
-      <section className="flex min-h-screen flex-col bg-[#f3eee5]">
-        <header className="flex h-[72px] items-center border-b border-[#ddd2c4] px-5 sm:px-8 lg:hidden">
+      <section className="flex min-h-screen flex-col">
+        <header className="flex h-[72px] items-center border-b bg-card px-5 sm:px-8 lg:hidden">
           <div className="flex items-center gap-2.5">
-            <span className="grid h-10 w-10 place-items-center rounded-xl border border-[#dfc28f] bg-[#f7ead3]">
+            <span className="grid size-10 place-items-center rounded-xl border border-[#dfc28f] bg-[#f7ead3]">
               <Image
                 alt=""
-                className="h-9 w-9 object-contain"
-              height={36}
-              priority
-              src="/brand/kopi-arunika-mark.png"
-              width={36}
-            />
-          </span>
-          <div>
-            <p className="text-sm font-semibold">Kopi Arunika</p>
-            <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[#777e79]">
-              Finance workspace
-            </p>
-          </div>
+                className="size-9 object-contain"
+                height={36}
+                priority
+                src="/brand/kopi-arunika-mark.png"
+                width={36}
+              />
+            </span>
+            <div>
+              <p className="text-sm font-semibold">Kopi Arunika</p>
+              <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                Finance workspace
+              </p>
+            </div>
           </div>
         </header>
 
         <div className="flex flex-1 items-center justify-center px-5 py-12 sm:px-8 lg:px-12">
-          <div className="w-full max-w-md">
-            <p className="eyebrow text-[#9b582f]">Akses owner</p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-[#18251f]">
-              Selamat datang kembali.
+          <div className="w-full max-w-[430px]">
+            <span className="mb-5 grid size-10 place-items-center rounded-xl border bg-card text-primary shadow-sm">
+              <LockKeyhole className="size-[18px]" />
+            </span>
+            <p className="eyebrow">Akses owner</p>
+            <h2 className="mt-3 text-[32px] font-semibold tracking-[-0.045em]">
+              Selamat datang kembali
             </h2>
-            <p className="mt-2 text-sm leading-6 text-[#667169]">
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
               Masuk untuk meninjau dokumen dan posisi keuangan Kopi Arunika.
             </p>
 
-            <div className="app-card mt-8 p-5 sm:p-7">
-              <form className="space-y-4" onSubmit={handleSubmit}>
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium" htmlFor="email">
-                    Email
-                  </label>
-                  <input
-                    autoComplete="email"
-                    className="form-control"
-                    id="email"
-                    onChange={(event) => setEmail(event.target.value)}
-                    required
-                    type="email"
-                    value={email}
-                  />
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium" htmlFor="password">
-                    Password
-                  </label>
-                  <input
-                    autoComplete="current-password"
-                    className="form-control"
-                    id="password"
-                    minLength={8}
-                    onChange={(event) => setPassword(event.target.value)}
-                    required
-                    type="password"
-                    value={password}
-                  />
-                </div>
+            <Card className="mt-8 gap-0 py-0 shadow-[0_18px_50px_rgb(17_36_28/0.07)] ring-border">
+              <CardContent className="p-5 sm:p-7">
+                <form onSubmit={handleSubmit}>
+                  <FieldGroup>
+                    <Field>
+                      <FieldLabel htmlFor="email">Email</FieldLabel>
+                      <Input
+                        autoComplete="email"
+                        className="h-11 bg-white"
+                        id="email"
+                        onChange={(event) => setEmail(event.target.value)}
+                        required
+                        type="email"
+                        value={email}
+                      />
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="password">Password</FieldLabel>
+                      <Input
+                        autoComplete="current-password"
+                        className="h-11 bg-white"
+                        id="password"
+                        minLength={8}
+                        onChange={(event) => setPassword(event.target.value)}
+                        required
+                        type="password"
+                        value={password}
+                      />
+                    </Field>
 
-                {error ? (
-                  <div
-                    className="rounded-lg border border-[#e3b7af] bg-[#fbeeea] px-3.5 py-3 text-sm text-[#8d3a30]"
-                    role="alert"
-                  >
-                    <strong className="block font-semibold">Belum bisa masuk</strong>
-                    <span>{error}</span>
-                  </div>
-                ) : null}
+                    {error ? (
+                      <FieldError className="rounded-lg border border-[#e6bbb4] bg-[#fbefec] px-3.5 py-3">
+                        <strong className="block font-semibold">
+                          Belum bisa masuk
+                        </strong>
+                        <span>{error}</span>
+                      </FieldError>
+                    ) : null}
 
-                <button
-                  className="primary-button !mt-6 w-full"
-                  disabled={loginMutation.isPending}
-                  type="submit"
-                >
-                  {loginMutation.isPending ? "Memeriksa akses…" : "Masuk sebagai owner"}
-                </button>
-              </form>
+                    <Button
+                      className="mt-1 h-11 w-full"
+                      disabled={loginMutation.isPending}
+                      size="lg"
+                      type="submit"
+                    >
+                      {loginMutation.isPending ? (
+                        <>
+                          <LoaderCircle
+                            className="animate-spin"
+                            data-icon="inline-start"
+                          />
+                          Memeriksa akses…
+                        </>
+                      ) : (
+                        "Masuk sebagai owner"
+                      )}
+                    </Button>
+                  </FieldGroup>
+                </form>
 
-              <div className="mt-5 flex items-start gap-2.5 border-t border-[#e4dacd] pt-4 text-xs leading-5 text-[#777e79]">
-                <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#d56f3a]" />
-                Kredensial demo sudah terisi. Tidak ada data atau kredensial nyata
-                yang disimpan.
-              </div>
-            </div>
+                <FieldDescription className="mt-5 flex items-start gap-2.5 border-t pt-4 text-xs leading-5">
+                  <ShieldCheck className="mt-0.5 size-4 shrink-0 text-[#d8753f]" />
+                  Kredensial demo sudah terisi. Tidak ada data atau kredensial
+                  nyata yang disimpan.
+                </FieldDescription>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </section>

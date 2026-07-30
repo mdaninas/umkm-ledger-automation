@@ -63,7 +63,7 @@ export default function DocumentDetailPage() {
           </div>
         ) : (
           <>
-            <header className="mt-5 flex flex-col justify-between gap-5 border-b border-[#dedfdb] pb-6 md:flex-row md:items-end">
+            <header className="mt-5 flex flex-col justify-between gap-5 border-b pb-6 md:flex-row md:items-end">
               <div>
                 <div className="flex flex-wrap items-center gap-3">
                   <h1 className="text-2xl font-semibold tracking-[-0.035em] sm:text-[28px]">
@@ -157,8 +157,8 @@ function DocumentPreview({
   }, [url]);
 
   return (
-    <article className="app-card overflow-hidden !bg-[#eeefec] xl:sticky xl:top-6 xl:self-start">
-      <div className="flex items-center justify-between border-b border-[#dedfdb] bg-white px-4 py-3.5">
+    <article className="app-card overflow-hidden xl:sticky xl:top-6 xl:self-start">
+      <div className="flex items-center justify-between border-b bg-card px-4 py-3.5">
         <div>
           <p className="text-sm font-semibold">Dokumen asli</p>
           <p className="mt-0.5 text-[11px] text-[#777e79]">
@@ -169,7 +169,7 @@ function DocumentPreview({
           {document.mime_type.replace("application/", "")}
         </span>
       </div>
-      <div className="grid min-h-[620px] place-items-center p-3 sm:p-4">
+      <div className="grid min-h-[440px] place-items-center bg-muted/70 p-2.5 sm:min-h-[620px] sm:p-4">
         {!url ? (
           <div className="text-center">
             <div className="mx-auto h-7 w-7 animate-spin rounded-full border-2 border-[#d1d4cf] border-t-[#174d3a]" />
@@ -178,7 +178,7 @@ function DocumentPreview({
         ) : document.mime_type === "application/pdf" ? (
           <object
             aria-label={`Pratinjau ${document.original_filename}`}
-            className="h-[620px] w-full rounded-md bg-white"
+            className="h-[440px] w-full rounded-lg bg-white sm:h-[620px]"
             data={url}
             type="application/pdf"
           >
@@ -189,7 +189,7 @@ function DocumentPreview({
           // eslint-disable-next-line @next/next/no-img-element
           <img
             alt={`Pratinjau ${document.original_filename}`}
-            className="max-h-[620px] rounded-md object-contain"
+            className="max-h-[440px] rounded-lg object-contain sm:max-h-[620px]"
             src={url}
           />
         )}
@@ -251,8 +251,8 @@ function ReviewPanel({
 
   return (
     <div className="space-y-5">
-      <article className="app-card p-5">
-        <div className="flex items-start justify-between gap-4">
+      <article className="app-card overflow-hidden">
+        <div className="flex items-start justify-between gap-4 border-b px-5 py-4">
           <div>
             <h2 className="text-base font-semibold tracking-[-0.015em]">
               Hasil ekstraksi
@@ -271,7 +271,7 @@ function ReviewPanel({
         </div>
 
         {document.validation_errors.length || document.validation_warnings.length ? (
-          <div className="mt-5 space-y-2">
+          <div className="space-y-2 px-5 pt-5">
             {[...document.validation_errors, ...document.validation_warnings].map(
               (issue, index) => (
                 <p
@@ -285,7 +285,7 @@ function ReviewPanel({
           </div>
         ) : null}
 
-        <form className="mt-5 grid gap-x-4 gap-y-4 sm:grid-cols-2" onSubmit={submit}>
+        <form className="grid gap-x-4 gap-y-4 p-5 sm:grid-cols-2" onSubmit={submit}>
           <Field label="Jenis dokumen">
             <select
               className="form-control"

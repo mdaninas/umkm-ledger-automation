@@ -24,7 +24,6 @@ from app.models import (
 from app.seed import DEMO_BUSINESS_ID, DEMO_OWNER_ID, seed_demo
 from app.storage import ObjectStorage, build_storage
 
-DEMO_PDF = b"%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF"
 DEMO_SOURCES = (
     {
         "id": uuid.UUID("a94a7299-43e4-43e7-9c08-9135c0d4f38d"),
@@ -56,6 +55,7 @@ def seed_bank_demo(
     seed_demo(session, settings)
     documents: list[Document] = []
     for source in DEMO_SOURCES:
+        pdf_content = _build_demo_pdf(source)
         existing = session.scalar(
             select(Document).where(
                 Document.business_id == DEMO_BUSINESS_ID,
@@ -67,9 +67,20 @@ def seed_bank_demo(
                 raise RuntimeError(
                     f"Demo source {source['number']} exists but is not posted."
                 )
+            # Demo seeding is also a repair path for synthetic assets created by
+            # earlier versions, whose placeholder bytes were not a renderable PDF.
+            storage.put(existing.storage_key, pdf_content, "application/pdf")
+            existing.sha256 = hashlib.sha256(pdf_content).hexdigest()
             documents.append(existing)
             continue
-        documents.append(_create_posted_source(session, storage=storage, source=source))
+        documents.append(
+            _create_posted_source(
+                session,
+                storage=storage,
+                source=source,
+                pdf_content=pdf_content,
+            )
+        )
     session.commit()
     return documents
 
@@ -79,6 +90,7 @@ def _create_posted_source(
     *,
     storage: ObjectStorage,
     source: dict[str, object],
+    pdf_content: bytes,
 ) -> Document:
     document_id = source["id"]
     if not isinstance(document_id, uuid.UUID):
@@ -97,7 +109,7 @@ def _create_posted_source(
 
     filename = f"{document_number.lower()}.pdf"
     storage_key = f"{DEMO_BUSINESS_ID}/{document_id}/{filename}"
-    storage.put(storage_key, DEMO_PDF, "application/pdf")
+    storage.put(storage_key, pdf_content, "application/pdf")
     now = datetime.now(UTC)
     category_account = _account(session, str(source["account_code"]))
     document = Document(
@@ -107,7 +119,7 @@ def _create_posted_source(
         original_filename=filename,
         mime_type="application/pdf",
         storage_key=storage_key,
-        sha256=hashlib.sha256(DEMO_PDF + document_number.encode()).hexdigest(),
+        sha256=hashlib.sha256(pdf_content).hexdigest(),
         upload_idempotency_key=f"demo-source-{document_number.lower()}",
         status=DocumentStatus.POSTED,
         document_type=document_type,
@@ -174,6 +186,71 @@ def _create_posted_source(
         },
     )
     return document
+
+
+def _build_demo_pdf(source: dict[str, object]) -> bytes:
+    document_number = str(source["number"])
+    vendor = str(source["vendor"])
+    transaction_date = source["transaction_date"]
+    total = source["total"]
+    if not isinstance(transaction_date, date):
+        raise TypeError("Demo transaction date must be a date.")
+    if not isinstance(total, Decimal):
+        raise TypeError("Demo total must be a decimal.")
+
+    lines = (
+        "Kopi Arunika - Dokumen Rekonsiliasi",
+        f"Nomor: {document_number}",
+        f"Vendor: {vendor}",
+        f"Tanggal: {transaction_date.isoformat()}",
+        f"Total: IDR {total:,.0f}",
+        "Dokumen sintetis untuk demonstrasi.",
+    )
+    text_commands = ["BT", "/F1 18 Tf", "50 235 Td"]
+    for index, line in enumerate(lines):
+        if index == 1:
+            text_commands.extend(("/F1 11 Tf", "0 -36 Td"))
+        elif index > 1:
+            text_commands.append("0 -22 Td")
+        text_commands.append(f"({_escape_pdf_text(line)}) Tj")
+    text_commands.append("ET")
+    stream = ("\n".join(text_commands) + "\n").encode("ascii")
+
+    objects = (
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        (
+            b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 500 300] "
+            b"/Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>"
+        ),
+        b"<< /Length " + str(len(stream)).encode("ascii") + b" >>\nstream\n"
+        + stream
+        + b"endstream",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    )
+    pdf = bytearray(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
+    offsets = [0]
+    for object_number, body in enumerate(objects, start=1):
+        offsets.append(len(pdf))
+        pdf.extend(f"{object_number} 0 obj\n".encode())
+        pdf.extend(body)
+        pdf.extend(b"\nendobj\n")
+    xref_offset = len(pdf)
+    pdf.extend(f"xref\n0 {len(offsets)}\n".encode())
+    pdf.extend(b"0000000000 65535 f \n")
+    for offset in offsets[1:]:
+        pdf.extend(f"{offset:010d} 00000 n \n".encode())
+    pdf.extend(
+        (
+            f"trailer\n<< /Size {len(offsets)} /Root 1 0 R >>\n"
+            f"startxref\n{xref_offset}\n%%EOF\n"
+        ).encode()
+    )
+    return bytes(pdf)
+
+
+def _escape_pdf_text(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
 
 
 def _account(session: Session, code: str) -> LedgerAccount:

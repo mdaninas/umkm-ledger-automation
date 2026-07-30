@@ -1,6 +1,13 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { QueryProvider } from "@/components/query-provider";
+import { Geist } from "next/font/google";
+import { TooltipProvider } from "@/components/ui/tooltip";
+
+const geist = Geist({
+  subsets: ["latin"],
+  variable: "--font-geist-sans",
+});
 
 export const metadata: Metadata = {
   title: {
@@ -21,9 +28,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="id">
+    <html className={geist.variable} lang="id">
       <body>
-        <QueryProvider>{children}</QueryProvider>
+        <TooltipProvider>
+          <QueryProvider>{children}</QueryProvider>
+        </TooltipProvider>
       </body>
     </html>
   );
