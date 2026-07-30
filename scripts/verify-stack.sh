@@ -22,6 +22,11 @@ curl --fail --silent \
   http://localhost:8000/api/v1/bank-transactions |
   grep --quiet '"counts"'
 
+curl --fail --silent \
+  -H "Authorization: Bearer ${TOKEN}" \
+  http://localhost:8000/api/v1/invoices |
+  grep --quiet '"counts"'
+
 curl --fail --silent http://localhost:3000/login >/dev/null
 
-echo "OK: readiness, login demo, tenant, rekonsiliasi bank, dan web terverifikasi."
+echo "OK: readiness, login demo, tenant, bank, piutang, dan web terverifikasi."

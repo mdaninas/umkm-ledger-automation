@@ -28,6 +28,7 @@ const navigation = [
   { href: "/dashboard", label: "Ringkasan", icon: "dashboard" },
   { href: "/inbox", label: "Dokumen", icon: "inbox" },
   { href: "/banking", label: "Mutasi bank", icon: "bank" },
+  { href: "/invoices", label: "Piutang", icon: "invoice" },
   { href: "/approvals", label: "Approval", icon: "approval" },
 ];
 
@@ -231,6 +232,11 @@ function NavIcon({ name, active }: { name: string; active: boolean }) {
         <>
           <path d="m3 9 9-5 9 5" stroke={stroke} strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" />
           <path d="M5 10h14M6 10v7m4-7v7m4-7v7m4-7v7M4 20h16" stroke={stroke} strokeLinecap="round" strokeWidth="1.7" />
+        </>
+      ) : name === "invoice" ? (
+        <>
+          <path d="M6 3h9l3 3v15l-3-1.5L12 21l-3-1.5L6 21V3Z" stroke={stroke} strokeLinejoin="round" strokeWidth="1.7" />
+          <path d="M9 9h6M9 13h6M9 17h3" stroke={stroke} strokeLinecap="round" strokeWidth="1.7" />
         </>
       ) : (
         <>

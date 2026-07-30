@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApiError, login, uploadBankImport, uploadDocument } from "@/lib/api";
+import {
+  ApiError,
+  approveInvoiceReminder,
+  login,
+  runInvoiceScheduler,
+  uploadBankImport,
+  uploadDocument,
+} from "@/lib/api";
 
 describe("API auth client", () => {
   afterEach(() => {
@@ -133,5 +140,50 @@ describe("API auth client", () => {
     );
     const headers = options.headers as Headers;
     expect(headers.has("Content-Type")).toBe(false);
+  });
+
+  it("menjalankan clock invoice dan mengirim approval idempotent", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            as_of: "2026-07-31",
+            businesses_scanned: 1,
+            invoices_scanned: 3,
+            status_updates: 2,
+            drafts_created: 1,
+            fallback_drafts: 0,
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "invoice-id",
+            reminders: [],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await runInvoiceScheduler("access-token", "2026-07-31");
+    await approveInvoiceReminder(
+      "access-token",
+      "reminder-id",
+      "Data penerima sudah benar.",
+    );
+
+    const schedulerOptions = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(schedulerOptions.body).toBe(
+      JSON.stringify({ as_of: "2026-07-31", force_fallback: false }),
+    );
+    const approvalOptions = fetchMock.mock.calls[1][1] as RequestInit;
+    const approvalHeaders = approvalOptions.headers as Headers;
+    expect(approvalHeaders.get("Idempotency-Key")).toBe(
+      "approve-reminder-reminder-id",
+    );
   });
 });

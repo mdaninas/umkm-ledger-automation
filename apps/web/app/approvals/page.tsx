@@ -28,7 +28,7 @@ export default function ApprovalsPage() {
               Approval
             </h1>
             <p className="mt-1.5 text-sm text-[#69716c]">
-              Keputusan yang membutuhkan konfirmasi sebelum dicatat.
+              Keputusan yang membutuhkan konfirmasi sebelum dicatat atau dikirim.
             </p>
           </div>
           <div className="flex items-center gap-2 text-xs text-[#69716c]">
@@ -104,13 +104,20 @@ export default function ApprovalsPage() {
 }
 
 function ApprovalRow({ approval }: { approval: Approval }) {
+  const isReminder = approval.entity_type === "INVOICE_REMINDER";
   return (
     <Link
       className="group grid gap-3 px-4 py-4 transition hover:bg-[#fbf6ee] md:grid-cols-[minmax(280px,1fr)_140px_170px_115px_18px] md:items-center"
-      href={`/inbox/${approval.document_id}`}
+      href={
+        isReminder || !approval.document_id
+          ? "/invoices"
+          : `/inbox/${approval.document_id}`
+      }
     >
       <div className="min-w-0">
-        <p className="text-sm font-medium">Posting jurnal dokumen</p>
+        <p className="text-sm font-medium">
+          {isReminder ? "Kirim pengingat invoice" : "Posting jurnal dokumen"}
+        </p>
         <p className="mt-0.5 truncate text-xs text-[#69716c]">{approval.reason}</p>
       </div>
       <div>

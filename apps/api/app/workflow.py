@@ -339,6 +339,8 @@ def _request_approval(
             business_id=document.business_id,
             workflow_run_id=run.id,
             document_id=document.id,
+            entity_type="DOCUMENT",
+            entity_id=document.id,
             journal_entry_id=journal_entry_id,
             action_type="POST_JOURNAL",
             payload={"journal_entry_id": str(journal_entry_id)},

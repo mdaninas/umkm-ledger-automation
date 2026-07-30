@@ -27,3 +27,6 @@ Thumbs.db
 # IDE
 .idea/
 .vscode/
+
+# Local Codex artifacts
+.codex/

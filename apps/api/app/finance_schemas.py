@@ -114,7 +114,9 @@ class JournalEntryResponse(BaseModel):
 
 class ApprovalResponse(BaseModel):
     id: uuid.UUID
-    document_id: uuid.UUID
+    document_id: uuid.UUID | None
+    entity_type: str
+    entity_id: uuid.UUID
     journal_entry_id: uuid.UUID | None
     action_type: str
     reason: str

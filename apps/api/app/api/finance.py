@@ -79,6 +79,8 @@ def get_approval(
     session: Annotated[Session, Depends(get_db_session)],
 ) -> DocumentDetail:
     approval = _approval_or_404(session, context.business_id, approval_id)
+    _require_document_approval(approval)
+    assert approval.document_id is not None
     document = get_document_or_404(
         session,
         business_id=context.business_id,
@@ -101,6 +103,8 @@ def approve_request(
 ) -> DocumentDetail:
     _require_owner(context)
     approval = _approval_or_404(session, context.business_id, approval_id)
+    _require_document_approval(approval)
+    assert approval.document_id is not None
     document = get_document_or_404(
         session,
         business_id=context.business_id,
@@ -128,6 +132,7 @@ def reject_request(
 ) -> dict[str, object]:
     _require_owner(context)
     approval = _approval_or_404(session, context.business_id, approval_id)
+    _require_document_approval(approval)
     rejected = reject_approval(
         session,
         approval=approval,
@@ -212,6 +217,14 @@ def _approval_or_404(
 def _require_owner(context: AuthContext) -> None:
     if context.membership.role != Role.OWNER:
         raise HTTPException(status_code=403, detail="Only an owner can decide approvals.")
+
+
+def _require_document_approval(approval: ApprovalRequest) -> None:
+    if approval.entity_type != "DOCUMENT" or approval.document_id is None:
+        raise HTTPException(
+            status_code=409,
+            detail="Use the invoice reminder endpoint for this approval.",
+        )
 
 
 def _count_journals(

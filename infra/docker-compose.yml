@@ -112,6 +112,13 @@ services:
       RECONCILIATION_AUTO_MATCH_THRESHOLD: ${RECONCILIATION_AUTO_MATCH_THRESHOLD:-90}
       RECONCILIATION_REVIEW_THRESHOLD: ${RECONCILIATION_REVIEW_THRESHOLD:-70}
       RECONCILIATION_AMBIGUITY_MARGIN: ${RECONCILIATION_AMBIGUITY_MARGIN:-10}
+      REMINDER_DUE_SOON_DAYS: ${REMINDER_DUE_SOON_DAYS:-7}
+      REMINDER_COOLDOWN_DAYS: ${REMINDER_COOLDOWN_DAYS:-7}
+      REMINDER_SCHEDULER_HOUR: ${REMINDER_SCHEDULER_HOUR:-8}
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-finance@kopiarunika.demo}
+      SMTP_TIMEOUT_SECONDS: ${SMTP_TIMEOUT_SECONDS:-5}
       JWT_SECRET: ${JWT_SECRET:-change-this-local-demo-secret-at-least-32-chars}
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-480}
@@ -176,6 +183,27 @@ services:
       interval: 10s
       timeout: 15s
       retries: 20
+    restart: unless-stopped
+
+  scheduler:
+    build:
+      context: ..
+      dockerfile: services/worker/Dockerfile
+    environment: *api_environment
+    command:
+      [
+        "celery",
+        "-A",
+        "app.worker.celery_app",
+        "beat",
+        "--loglevel=INFO",
+        "--schedule=/tmp/celerybeat-schedule",
+      ]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
     restart: unless-stopped
 
   web:

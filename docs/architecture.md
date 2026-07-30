@@ -12,6 +12,9 @@ flowchart LR
     Worker --> DB
     API --> Match["Deterministic reconciliation engine"]
     Match --> DB
+    Beat["Celery daily scheduler"] --> API
+    Worker --> Outbox["Approved email outbox"]
+    Outbox --> Mailpit["Local Mailpit sandbox"]
     Owner["Business owner"] --> Browser
 ```
 
@@ -42,6 +45,23 @@ flowchart LR
    by database constraints that allow only one active match per bank transaction
    and source document.
 
+## Invoice collection flow
+
+1. The daily Celery schedule evaluates each invoice against the calendar date
+   in its business timezone.
+2. Deterministic rules assign outstanding, due-soon, overdue, or paid status.
+3. An overdue invoice receives at most one active reminder. AI assistance may
+   supply optional copy, while invoice number, total, currency, and due date are
+   rendered directly from database fields.
+4. If copy assistance fails, a deterministic template creates the same factual
+   draft. The draft remains editable and cannot create an outbox message before
+   owner approval.
+5. Approval atomically creates one email outbox row with a stable idempotency
+   key. Celery delivers it to the local Mailpit sandbox.
+6. Sent state, cooldown rules, and the unique outbox key prevent routine retries
+   from producing duplicate reminders. Drafting, edits, decisions, failures, and
+   delivery are recorded as audit events.
+
 ## Trust boundaries
 
 - `business_id` scopes all finance entities and queries.
@@ -54,11 +74,15 @@ flowchart LR
 - Only posted, balanced journals contribute to dashboard totals.
 - Bank imports never move money and imported transactions remain read-only.
 - Reconciliation scores are deterministic and expose their component evidence.
+- Invoice facts are never calculated by the copy provider.
+- External delivery requires an approved reminder; public APIs expose only a
+  masked recipient.
+- Local Mailpit is a demo sandbox, not a production email integration.
 - Audit events record system steps and human decisions with correlation IDs.
 
 ## Runtime
 
-The API, worker, and seed share the same Python package. Alembic owns production
-schema changes, while direct schema creation is restricted to isolated SQLite
-tests. Health checks cover PostgreSQL, Redis, private object storage, the worker,
-and the web application.
+The API, worker, scheduler, and seed share the same Python package. Alembic owns
+production schema changes, while direct schema creation is restricted to
+isolated SQLite tests. Health checks cover PostgreSQL, Redis, private object
+storage, the worker, and the web application.

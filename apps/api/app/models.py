@@ -133,6 +133,38 @@ class ReconciliationStatus(StrEnum):
     REJECTED = "REJECTED"
 
 
+class InvoiceStatus(StrEnum):
+    OUTSTANDING = "OUTSTANDING"
+    DUE_SOON = "DUE_SOON"
+    OVERDUE = "OVERDUE"
+    PAID = "PAID"
+
+
+class ReminderStatus(StrEnum):
+    PENDING_APPROVAL = "PENDING_APPROVAL"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    QUEUED = "QUEUED"
+    SENT = "SENT"
+    FAILED = "FAILED"
+
+
+class ReminderSource(StrEnum):
+    AI_ASSISTED = "AI_ASSISTED"
+    DETERMINISTIC_FALLBACK = "DETERMINISTIC_FALLBACK"
+
+
+class OutboxChannel(StrEnum):
+    EMAIL = "EMAIL"
+
+
+class OutboxStatus(StrEnum):
+    PENDING = "PENDING"
+    PROCESSING = "PROCESSING"
+    SENT = "SENT"
+    FAILED = "FAILED"
+
+
 class Business(Base):
     __tablename__ = "businesses"
 
@@ -460,9 +492,10 @@ class ApprovalRequest(Base):
     __table_args__ = (
         UniqueConstraint(
             "business_id",
-            "document_id",
+            "entity_type",
+            "entity_id",
             "action_type",
-            name="uq_approval_document_action",
+            name="uq_approval_entity_action",
         ),
     )
 
@@ -473,9 +506,13 @@ class ApprovalRequest(Base):
     workflow_run_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("workflow_runs.id", ondelete="SET NULL"), nullable=True
     )
-    document_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("documents.id", ondelete="CASCADE"), nullable=False, index=True
+    document_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("documents.id", ondelete="CASCADE"), nullable=True, index=True
     )
+    entity_type: Mapped[str] = mapped_column(
+        String(40), nullable=False, default="DOCUMENT", index=True
+    )
+    entity_id: Mapped[uuid.UUID] = mapped_column(nullable=False, index=True)
     journal_entry_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("journal_entries.id", ondelete="SET NULL"), nullable=True
     )
@@ -648,3 +685,178 @@ class Reconciliation(Base):
     bank_transaction: Mapped[BankTransaction] = relationship(
         back_populates="reconciliations"
     )
+
+
+class Customer(Base):
+    __tablename__ = "customers"
+    __table_args__ = (
+        UniqueConstraint("business_id", "email", name="uq_customer_business_email"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    business_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("businesses.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    email: Mapped[str] = mapped_column(String(320), nullable=False)
+    phone_masked: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    invoices: Mapped[list["Invoice"]] = relationship(back_populates="customer")
+
+
+class Invoice(Base):
+    __tablename__ = "invoices"
+    __table_args__ = (
+        UniqueConstraint(
+            "business_id",
+            "invoice_number",
+            name="uq_invoice_business_number",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    business_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("businesses.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    document_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("documents.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    customer_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("customers.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    invoice_number: Mapped[str] = mapped_column(String(120), nullable=False)
+    issue_date: Mapped[date] = mapped_column(Date, nullable=False)
+    due_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    subtotal: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    tax: Mapped[Decimal] = mapped_column(
+        Numeric(18, 2), nullable=False, default=Decimal("0")
+    )
+    total: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="IDR")
+    status: Mapped[InvoiceStatus] = mapped_column(
+        Enum(InvoiceStatus, native_enum=False, length=24),
+        nullable=False,
+        default=InvoiceStatus.OUTSTANDING,
+        index=True,
+    )
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+    customer: Mapped[Customer] = relationship(back_populates="invoices")
+    reminders: Mapped[list["InvoiceReminder"]] = relationship(
+        back_populates="invoice",
+        cascade="all, delete-orphan",
+        order_by="InvoiceReminder.created_at.desc()",
+    )
+
+
+class InvoiceReminder(Base):
+    __tablename__ = "invoice_reminders"
+    __table_args__ = (
+        UniqueConstraint(
+            "invoice_id",
+            "sequence",
+            name="uq_invoice_reminder_sequence",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    business_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("businesses.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    invoice_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("invoices.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    sequence: Mapped[int] = mapped_column(Integer, nullable=False)
+    subject: Mapped[str] = mapped_column(String(255), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    source: Mapped[ReminderSource] = mapped_column(
+        Enum(ReminderSource, native_enum=False, length=32), nullable=False
+    )
+    status: Mapped[ReminderStatus] = mapped_column(
+        Enum(ReminderStatus, native_enum=False, length=32),
+        nullable=False,
+        default=ReminderStatus.PENDING_APPROVAL,
+        index=True,
+    )
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
+    )
+    approved_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
+    )
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+    invoice: Mapped[Invoice] = relationship(back_populates="reminders")
+    outbox_messages: Mapped[list["OutboxMessage"]] = relationship(
+        back_populates="reminder",
+        cascade="all, delete-orphan",
+        order_by="OutboxMessage.created_at.desc()",
+    )
+
+
+class OutboxMessage(Base):
+    __tablename__ = "outbox_messages"
+    __table_args__ = (
+        UniqueConstraint(
+            "business_id",
+            "idempotency_key",
+            name="uq_outbox_business_idempotency",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    business_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("businesses.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    reminder_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("invoice_reminders.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    channel: Mapped[OutboxChannel] = mapped_column(
+        Enum(OutboxChannel, native_enum=False, length=16), nullable=False
+    )
+    recipient: Mapped[str] = mapped_column(String(320), nullable=False)
+    recipient_masked: Mapped[str] = mapped_column(String(320), nullable=False)
+    template: Mapped[str] = mapped_column(String(80), nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    status: Mapped[OutboxStatus] = mapped_column(
+        Enum(OutboxStatus, native_enum=False, length=24),
+        nullable=False,
+        default=OutboxStatus.PENDING,
+        index=True,
+    )
+    attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    next_attempt_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    last_error: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    reminder: Mapped[InvoiceReminder] = relationship(back_populates="outbox_messages")

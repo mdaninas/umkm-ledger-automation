@@ -38,6 +38,14 @@ class Settings(BaseSettings):
     reconciliation_auto_match_threshold: Decimal = Decimal("90")
     reconciliation_review_threshold: Decimal = Decimal("70")
     reconciliation_ambiguity_margin: Decimal = Decimal("10")
+    reminder_due_soon_days: int = Field(default=7, ge=1, le=30)
+    reminder_cooldown_days: int = Field(default=7, ge=1, le=90)
+    reminder_scheduler_hour: int = Field(default=8, ge=0, le=23)
+
+    smtp_host: str = "localhost"
+    smtp_port: int = Field(default=1025, ge=1, le=65535)
+    smtp_from_email: str = "finance@kopiarunika.demo"
+    smtp_timeout_seconds: float = Field(default=5.0, gt=0, le=30)
 
     ai_provider: str = "mock"
     ai_http_endpoint: str | None = None

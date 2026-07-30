@@ -251,6 +251,8 @@ def reject_approval(
 ) -> ApprovalRequest:
     if approval.status != ApprovalStatus.PENDING:
         return approval
+    if approval.document_id is None:
+        raise ValueError("Document approval is missing its document reference.")
     now = datetime.now(UTC)
     approval.status = ApprovalStatus.REJECTED
     approval.decided_by = context.user.id
@@ -435,6 +437,8 @@ def _ensure_approval(
         approval = ApprovalRequest(
             business_id=document.business_id,
             document_id=document.id,
+            entity_type="DOCUMENT",
+            entity_id=document.id,
             journal_entry_id=journal.id,
             action_type="POST_JOURNAL",
             payload={"journal_entry_id": str(journal.id)},
@@ -539,6 +543,8 @@ def _approval_dict(approval: ApprovalRequest) -> dict[str, Any]:
     return {
         "id": approval.id,
         "document_id": approval.document_id,
+        "entity_type": approval.entity_type,
+        "entity_id": approval.entity_id,
         "journal_entry_id": approval.journal_entry_id,
         "action_type": approval.action_type,
         "reason": approval.reason,

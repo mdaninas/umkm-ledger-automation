@@ -31,6 +31,13 @@ journal, and is posted only after human review.
   counterparty, and reference evidence.
 - Auto-matches only high-confidence, conflict-free candidates and routes
   ambiguous transactions to human review.
+- Tracks customer invoices as outstanding, due soon, overdue, or paid using the
+  business timezone.
+- Creates editable overdue reminders with database-locked invoice facts and a
+  deterministic fallback when AI copy assistance is unavailable.
+- Requires owner approval before an email enters the idempotent outbox.
+- Delivers approved demo reminders to Mailpit with cooldown, retry protection,
+  history, and audit events.
 - Enforces tenant scope and database-backed roles on every protected request.
 
 Draft journals are deliberately excluded from posted income, expenses, cash, and
@@ -44,9 +51,9 @@ Prerequisite: Docker Desktop with Docker Compose v2.
 pnpm dev
 ```
 
-The command builds and starts Next.js, FastAPI, Celery, PostgreSQL, Redis,
-MinIO, and Mailpit. Database migrations and synthetic Kopi Arunika demo data are
-applied automatically.
+The command builds and starts Next.js, FastAPI, Celery workers and scheduler,
+PostgreSQL, Redis, MinIO, and Mailpit. Database migrations and synthetic Kopi
+Arunika demo data are applied automatically.
 
 Open [http://localhost:3000](http://localhost:3000) and sign in with:
 
@@ -101,6 +108,31 @@ The score is deterministic: amount contributes up to 50 points, date 20,
 counterparty 20, and reference 10. Scores of 90 or more may auto-match only when
 there is no competing or already-used source; scores from 70 to 89 require
 review.
+
+### Invoice collection walkthrough
+
+Prepare the synthetic customer invoices:
+
+```powershell
+pnpm demo:invoices
+```
+
+Then:
+
+1. Open **Piutang** and set the inspection date to `2026-07-31`.
+2. Run the inspection. The scheduler marks one invoice overdue, another due
+   soon, and creates one draft reminder.
+3. Open the overdue invoice and verify that its number, total, and due date in
+   the message match the invoice detail.
+4. Change one sentence and save the draft.
+5. Add an approval note and choose **Setujui & antrekan**.
+6. Open [Mailpit](http://localhost:8025) and confirm the reminder appears once.
+7. Reopen the invoice to inspect its delivery status and reminder history.
+
+The scheduler uses the business timezone. AI assistance only supplies optional
+wording; invoice number, total, currency, and due date are rendered from
+database values. If copy assistance fails, the deterministic template keeps the
+workflow available.
 
 ### Local services
 
@@ -162,7 +194,8 @@ The backend suite covers authentication, tenant boundaries, valid and invalid
 uploads, schema failures, exact and semantic duplicates, balanced journals,
 rejection of unbalanced journals, draft exclusion, bank row validation,
 deterministic reconciliation scoring, match uniqueness, audit events, and
-idempotent document, journal, and bank imports.
+idempotent document, journal, bank imports, reminder approval, cooldown, fallback
+copy, and duplicate-safe email delivery.
 
 Useful individual commands:
 
@@ -184,10 +217,10 @@ containers communicate internally through `5432` and `6379`.
 
 ```text
 apps/
-  api/                 FastAPI, workflows, ledger, Alembic, and tests
-  web/                 Next.js inbox, review, banking, approval, and dashboard
+  api/                 FastAPI, workflows, ledger, outbox, Alembic, and tests
+  web/                 Next.js inbox, banking, piutang, approval, and dashboard
 services/
-  worker/              Celery image using the shared API package
+  worker/              Celery worker and scheduler using the shared API package
 packages/
   contracts/           Space for generated OpenAPI client contracts
 infra/
@@ -214,6 +247,10 @@ docs/
   business records.
 - Partial unique indexes prevent one bank transaction or source document from
   being used by two active reconciliations.
+- Reminder facts are rendered from invoice records, and an outbox row exists
+  only after owner approval.
+- Unique outbox keys and delivery state make retries safe; recipient details are
+  masked in API responses and audit metadata.
 - Structured logs and append-only audit events carry correlation IDs without
   exposing source document contents.
 - The API and worker containers run as non-root users.
@@ -224,6 +261,8 @@ boundaries.
 
 ## Product boundaries
 
-The application does not initiate payments or bank transfers, file taxes, send
-external messages, or connect directly to bank accounts. AI proposes structured
-data; deterministic controls and a human owner decide what is posted.
+The application does not initiate payments or bank transfers, file taxes,
+connect directly to bank accounts, or send production email or WhatsApp
+messages. Reminder delivery is restricted to the local synthetic Mailpit
+sandbox. AI proposes structured data and optional wording; deterministic
+controls and a human owner decide what is posted or sent.
