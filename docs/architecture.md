@@ -12,7 +12,7 @@ flowchart LR
     Worker --> DB
     API --> Match["Deterministic reconciliation engine"]
     Match --> DB
-    Beat["Celery daily scheduler"] --> API
+    Beat["Celery schedules"] --> API
     Worker --> Outbox["Approved email outbox"]
     Outbox --> Mailpit["Local Mailpit sandbox"]
     Owner["Business owner"] --> Browser
@@ -62,6 +62,23 @@ flowchart LR
    from producing duplicate reminders. Drafting, edits, decisions, failures, and
    delivery are recorded as audit events.
 
+## Reporting flow
+
+1. A selected date range is resolved in the business timezone and reused by the
+   dashboard and CSV export.
+2. Income, expenses, cash movement, and closing balances are aggregated from
+   posted journal lines. Draft and reversed journals never enter report totals.
+3. Expense composition groups those same posted lines by account. Operational
+   metrics come from workflow runs, extraction usage, and imported bank
+   transactions created in the selected period.
+4. Deterministic alert rules return their rule text and a source URL for
+   drill-through. No alert is generated from a language-model judgment.
+5. The Monday scheduler persists one weekly digest per business and seven-day
+   period. Its narrative formats values from a stored metric snapshot and source
+   references, so retries are idempotent and cannot invent new figures.
+6. The authenticated CSV export returns the posted ledger lines behind the
+   selected period for independent reconciliation.
+
 ## Trust boundaries
 
 - `business_id` scopes all finance entities and queries.
@@ -72,6 +89,8 @@ flowchart LR
 - The extraction provider cannot post journals or execute tools.
 - Source files stay private and are fetched through an authenticated API endpoint.
 - Only posted, balanced journals contribute to dashboard totals.
+- Dashboard totals, charts, alerts, and exports retain source identifiers and
+  use deterministic metric definitions.
 - Bank imports never move money and imported transactions remain read-only.
 - Reconciliation scores are deterministic and expose their component evidence.
 - Invoice facts are never calculated by the copy provider.

@@ -17,6 +17,7 @@ import {
   runInvoiceScheduler,
   updateInvoiceReminder,
 } from "@/lib/api";
+import { useQueryParam } from "@/lib/use-query-param";
 
 const statusLabels: Record<InvoiceStatus, string> = {
   OUTSTANDING: "Belum dibayar",
@@ -28,11 +29,14 @@ const statusLabels: Record<InvoiceStatus, string> = {
 export default function InvoicesPage() {
   const token = useSessionToken();
   const queryClient = useQueryClient();
+  const queryStatus = useQueryParam("status");
+  const queryInvoiceId = useQueryParam("invoice");
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("");
+  const [statusOverride, setStatus] = useState<string | null>(null);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
   const [asOf, setAsOf] = useState("");
   const [schedulerMessage, setSchedulerMessage] = useState<string | null>(null);
+  const status = statusOverride ?? queryStatus ?? "";
 
   const invoices = useQuery({
     queryKey: ["invoices", status, search],
@@ -42,7 +46,7 @@ export default function InvoicesPage() {
   });
   const items = invoices.data?.items ?? [];
   const effectiveAsOf = asOf || invoices.data?.as_of || "";
-  const activeInvoiceId = selectedInvoiceId ?? items[0]?.id ?? null;
+  const activeInvoiceId = selectedInvoiceId ?? queryInvoiceId ?? items[0]?.id ?? null;
   const detail = useQuery({
     queryKey: ["invoice", activeInvoiceId],
     queryFn: () => getInvoice(token!, activeInvoiceId!),

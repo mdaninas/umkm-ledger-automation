@@ -53,8 +53,8 @@ type NavigationItem = {
 const navigation: NavigationItem[] = [
   {
     href: "/dashboard",
-    label: "Ringkasan",
-    mobileLabel: "Ringkasan",
+    label: "Laporan",
+    mobileLabel: "Laporan",
     icon: LayoutDashboard,
   },
   {

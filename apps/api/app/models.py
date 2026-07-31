@@ -860,3 +860,30 @@ class OutboxMessage(Base):
     )
 
     reminder: Mapped[InvoiceReminder] = relationship(back_populates="outbox_messages")
+
+
+class WeeklyDigest(Base):
+    __tablename__ = "weekly_digests"
+    __table_args__ = (
+        UniqueConstraint(
+            "business_id",
+            "period_start",
+            "period_end",
+            name="uq_weekly_digest_business_period",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    business_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("businesses.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    period_start: Mapped[date] = mapped_column(Date, nullable=False)
+    period_end: Mapped[date] = mapped_column(Date, nullable=False)
+    narrative: Mapped[str] = mapped_column(Text, nullable=False)
+    snapshot: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    source_refs: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSON, nullable=False, default=list
+    )
+    generated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )

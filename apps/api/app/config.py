@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     reminder_due_soon_days: int = Field(default=7, ge=1, le=30)
     reminder_cooldown_days: int = Field(default=7, ge=1, le=90)
     reminder_scheduler_hour: int = Field(default=8, ge=0, le=23)
+    weekly_digest_scheduler_hour: int = Field(default=7, ge=0, le=23)
 
     smtp_host: str = "localhost"
     smtp_port: int = Field(default=1025, ge=1, le=65535)

@@ -2,7 +2,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ApiError,
   approveInvoiceReminder,
+  downloadReportCsv,
+  getDashboardReport,
   login,
+  runWeeklyDigest,
   runInvoiceScheduler,
   uploadBankImport,
   uploadDocument,
@@ -185,5 +188,63 @@ describe("API auth client", () => {
     expect(approvalHeaders.get("Idempotency-Key")).toBe(
       "approve-reminder-reminder-id",
     );
+  });
+
+  it("memakai periode yang sama untuk dashboard, digest, dan ekspor CSV", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            period: {
+              start_date: "2026-07-01",
+              end_date: "2026-07-31",
+            },
+            overview: { available_cash: "45450000.00" },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "digest-id",
+            period_end: "2026-07-31",
+            narrative: "Ringkasan berbasis ledger.",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response("tanggal,journal_id\n", {
+          status: 200,
+          headers: {
+            "Content-Type": "text/csv",
+            "Content-Disposition":
+              'attachment; filename="laporan-2026-07-01-2026-07-31.csv"',
+          },
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await getDashboardReport("access-token", "2026-07-01", "2026-07-31");
+    await runWeeklyDigest("access-token", "2026-07-31");
+    const exported = await downloadReportCsv(
+      "access-token",
+      "2026-07-01",
+      "2026-07-31",
+    );
+
+    expect(fetchMock.mock.calls[0][0]).toContain(
+      "/api/v1/reports/dashboard?start_date=2026-07-01&end_date=2026-07-31",
+    );
+    const digestOptions = fetchMock.mock.calls[1][1] as RequestInit;
+    expect(digestOptions.body).toBe(
+      JSON.stringify({ period_end: "2026-07-31" }),
+    );
+    expect(fetchMock.mock.calls[2][0]).toContain(
+      "/api/v1/reports/export.csv?start_date=2026-07-01&end_date=2026-07-31",
+    );
+    expect(exported.filename).toBe("laporan-2026-07-01-2026-07-31.csv");
   });
 });

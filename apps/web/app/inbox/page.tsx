@@ -11,6 +11,7 @@ import {
   getDocuments,
   uploadDocument,
 } from "@/lib/api";
+import { useQueryParam } from "@/lib/use-query-param";
 
 const rupiah = new Intl.NumberFormat("id-ID", {
   style: "currency",
@@ -27,8 +28,10 @@ const processingStatuses: DocumentStatus[] = [
 export default function InboxPage() {
   const token = useSessionToken();
   const queryClient = useQueryClient();
-  const [status, setStatus] = useState("");
+  const queryStatus = useQueryParam("status");
+  const [statusOverride, setStatus] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const status = statusOverride ?? queryStatus ?? "";
   const documents = useQuery({
     queryKey: ["documents", status, search],
     queryFn: () => getDocuments(token!, { status, search }),

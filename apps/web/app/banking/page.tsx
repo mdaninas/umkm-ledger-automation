@@ -16,6 +16,7 @@ import {
   rejectReconciliation,
   uploadBankImport,
 } from "@/lib/api";
+import { useQueryParam } from "@/lib/use-query-param";
 
 const rupiah = new Intl.NumberFormat("id-ID", {
   style: "currency",
@@ -28,6 +29,8 @@ type AmountMode = "split" | "signed";
 export default function BankingPage() {
   const token = useSessionToken();
   const queryClient = useQueryClient();
+  const queryStatus = useQueryParam("status");
+  const queryTransactionId = useQueryParam("transaction");
   const [file, setFile] = useState<File | null>(null);
   const [headers, setHeaders] = useState<string[]>([]);
   const [mapping, setMapping] = useState<BankColumnMapping>({
@@ -38,9 +41,10 @@ export default function BankingPage() {
   });
   const [amountMode, setAmountMode] = useState<AmountMode>("split");
   const [importResult, setImportResult] = useState<BankImport | null>(null);
-  const [status, setStatus] = useState("");
+  const [statusOverride, setStatus] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const status = statusOverride ?? queryStatus ?? "";
 
   const imports = useQuery({
     queryKey: ["bank-imports"],
@@ -65,8 +69,9 @@ export default function BankingPage() {
   });
 
   const items = transactions.data?.items ?? [];
+  const activeTransactionId = selectedId ?? queryTransactionId;
   const selected =
-    items.find((item) => item.id === selectedId) ?? items[0] ?? null;
+    items.find((item) => item.id === activeTransactionId) ?? items[0] ?? null;
   const latestImport = importResult ?? imports.data?.items[0] ?? null;
   const mappingReady = Boolean(
     file &&

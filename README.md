@@ -38,6 +38,15 @@ journal, and is posted only after human review.
 - Requires owner approval before an email enters the idempotent outbox.
 - Delivers approved demo reminders to Mailpit with cooldown, retry protection,
   history, and audit events.
+- Reconciles period income, expenses, and daily cash movement to posted ledger
+  lines, with draft journals excluded by construction.
+- Surfaces drill-through alerts for overdue invoices, possible duplicates,
+  unmatched bank transactions, reconciliation mismatches, and unusual expense
+  categories.
+- Tracks workflow success, failure, retries, review queues, median latency,
+  explicit AI usage cost, and bank-match coverage.
+- Generates an idempotent weekly finance digest and exports the filtered ledger
+  evidence as UTF-8 CSV.
 - Enforces tenant scope and database-backed roles on every protected request.
 
 Draft journals are deliberately excluded from posted income, expenses, cash, and
@@ -75,7 +84,7 @@ deployment.
 5. Correct fields if needed, select the suggested ledger account, and save the
    review.
 6. Confirm that debit and credit totals match, then approve and post the journal.
-7. Open **Ringkasan** to see posted figures and **Approval** or the document
+7. Open **Laporan** to see posted figures and **Approval** or the document
    timeline to inspect the decision history.
 
 The default mock provider returns stable synthetic receipt data, so the complete
@@ -133,6 +142,36 @@ The scheduler uses the business timezone. AI assistance only supplies optional
 wording; invoice number, total, currency, and due date are rendered from
 database values. If copy assistance fails, the deterministic template keeps the
 workflow available.
+
+### Financial reporting walkthrough
+
+Prepare the synthetic posted ledger, workflow metrics, alerts, and weekly digest:
+
+```powershell
+pnpm demo:reports
+```
+
+Then open **Laporan** and:
+
+1. Compare the current period's income, expenses, and available cash.
+2. Inspect the daily closing-balance chart and ranked expense categories.
+3. Open an alert to reach the document, invoice, or bank transaction that
+   triggered its deterministic rule.
+4. Review workflow success, failure, retry, review, reconciliation, latency,
+   and explicit AI-cost metrics.
+5. Change the date range and verify that the cards, chart, and CSV export use
+   the same period.
+6. Generate the weekly digest. Repeating the same period returns the same
+   persisted digest instead of creating a duplicate.
+
+Metric definitions are intentionally narrow: income and expense totals use only
+posted journal lines inside the selected period; available cash is the
+cumulative debit-minus-credit balance of the cash and bank accounts through the
+period end; automation rate is successful workflow runs divided by all workflow
+runs created in the period; and reconciliation rate is matched imported bank
+transactions divided by all imported transactions in the period. AI cost is
+reported only when a provider records an explicit IDR estimate—it is never
+inferred.
 
 ### Local services
 
@@ -195,7 +234,8 @@ uploads, schema failures, exact and semantic duplicates, balanced journals,
 rejection of unbalanced journals, draft exclusion, bank row validation,
 deterministic reconciliation scoring, match uniqueness, audit events, and
 idempotent document, journal, bank imports, reminder approval, cooldown, fallback
-copy, and duplicate-safe email delivery.
+copy, duplicate-safe email delivery, ledger-to-dashboard reconciliation,
+filtered report export, and weekly digest generation.
 
 Useful individual commands:
 

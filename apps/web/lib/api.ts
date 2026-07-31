@@ -270,6 +270,106 @@ export interface DashboardSummary {
   bank_balance: string;
 }
 
+export interface ReportPeriod {
+  start_date: string;
+  end_date: string;
+  previous_start_date: string;
+  previous_end_date: string;
+  label: string;
+}
+
+export interface FinancialOverview {
+  cash_balance: string;
+  bank_balance: string;
+  available_cash: string;
+  income: string;
+  expenses: string;
+  net_cash_flow: string;
+  profit_margin_percent: string | null;
+  income_change_percent: string | null;
+  expense_change_percent: string | null;
+}
+
+export interface CashflowPoint {
+  date: string;
+  inflow: string;
+  outflow: string;
+  net: string;
+  closing_balance: string;
+}
+
+export interface ExpenseBreakdownItem {
+  account_code: string;
+  account_name: string;
+  amount: string;
+  share_percent: string;
+}
+
+export interface OutstandingInvoiceItem {
+  id: string;
+  invoice_number: string;
+  customer_name: string;
+  due_date: string;
+  days_overdue: number;
+  status: InvoiceStatus;
+  total: string;
+  source_url: string;
+}
+
+export interface OperationalAlert {
+  id: string;
+  alert_type: string;
+  severity: "HIGH" | "MEDIUM" | "LOW";
+  title: string;
+  description: string;
+  amount: string | null;
+  source_type: string;
+  source_id: string | null;
+  source_url: string;
+  rule: string;
+}
+
+export interface AutomationMetrics {
+  total_workflows: number;
+  succeeded: number;
+  failed: number;
+  waiting_review: number;
+  retry_count: number;
+  automation_rate_percent: string;
+  median_latency_seconds: string | null;
+  estimated_ai_cost_idr: string;
+}
+
+export interface ReconciliationMetrics {
+  total_transactions: number;
+  matched_transactions: number;
+  unmatched_transactions: number;
+  match_rate_percent: string;
+}
+
+export interface DashboardReport {
+  period: ReportPeriod;
+  generated_at: string;
+  overview: FinancialOverview;
+  cashflow: CashflowPoint[];
+  expense_breakdown: ExpenseBreakdownItem[];
+  outstanding_invoices: OutstandingInvoiceItem[];
+  alerts: OperationalAlert[];
+  automation: AutomationMetrics;
+  reconciliation: ReconciliationMetrics;
+  ledger_source_count: number;
+}
+
+export interface WeeklyDigest {
+  id: string;
+  period_start: string;
+  period_end: string;
+  narrative: string;
+  snapshot: Record<string, unknown>;
+  source_refs: Array<Record<string, unknown>>;
+  generated_at: string;
+}
+
 export type BankTransactionStatus =
   | "UNMATCHED"
   | "SUGGESTED"
@@ -632,6 +732,68 @@ export function retryOutboxMessage(
 
 export function getDashboardSummary(token: string): Promise<DashboardSummary> {
   return apiRequest("/api/v1/dashboard/summary", {}, token);
+}
+
+function reportQuery(startDate: string, endDate: string): string {
+  const params = new URLSearchParams({
+    start_date: startDate,
+    end_date: endDate,
+  });
+  return params.toString();
+}
+
+export function getDashboardReport(
+  token: string,
+  startDate: string,
+  endDate: string,
+): Promise<DashboardReport> {
+  return apiRequest(
+    `/api/v1/reports/dashboard?${reportQuery(startDate, endDate)}`,
+    {},
+    token,
+  );
+}
+
+export function getWeeklyDigests(token: string): Promise<WeeklyDigest[]> {
+  return apiRequest("/api/v1/reports/weekly-digests", {}, token);
+}
+
+export function runWeeklyDigest(
+  token: string,
+  periodEnd?: string,
+): Promise<WeeklyDigest> {
+  return apiRequest(
+    "/api/v1/reports/weekly-digests/run",
+    {
+      method: "POST",
+      body: JSON.stringify({ period_end: periodEnd || null }),
+    },
+    token,
+  );
+}
+
+export async function downloadReportCsv(
+  token: string,
+  startDate: string,
+  endDate: string,
+): Promise<{ blob: Blob; filename: string }> {
+  const response = await fetch(
+    `${API_URL}/api/v1/reports/export.csv?${reportQuery(startDate, endDate)}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as {
+      detail?: string;
+    } | null;
+    throw new ApiError(
+      body?.detail ?? "Laporan CSV tidak dapat diunduh.",
+      response.status,
+    );
+  }
+  const disposition = response.headers.get("Content-Disposition") ?? "";
+  const filename =
+    disposition.match(/filename="?([^";]+)"?/i)?.[1] ?? "laporan.csv";
+  return { blob: await response.blob(), filename };
 }
 
 export function getBankImports(

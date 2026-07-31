@@ -8,7 +8,8 @@ from app.config import get_settings
 from app.database import Database
 from app.extraction import ExtractionSchemaError, build_extraction_provider
 from app.invoice_service import dispatch_outbox_message, scan_invoices
-from app.models import WorkflowRun, WorkflowStatus
+from app.models import Business, WorkflowRun, WorkflowStatus
+from app.report_service import generate_weekly_digest
 from app.storage import build_storage
 from app.workflow import process_document
 
@@ -33,6 +34,14 @@ celery_app.conf.beat_schedule = {
         "task": "invoices.scan_overdue",
         "schedule": crontab(
             hour=settings.reminder_scheduler_hour,
+            minute=0,
+        ),
+    },
+    "generate-weekly-digests": {
+        "task": "reports.generate_weekly_digest",
+        "schedule": crontab(
+            day_of_week="monday",
+            hour=settings.weekly_digest_scheduler_hour,
             minute=0,
         ),
     },
@@ -144,5 +153,24 @@ def scan_overdue_invoices_task() -> dict[str, str | int]:
                 "status_updates": result["status_updates"],
                 "drafts_created": result["drafts_created"],
             }
+    finally:
+        database.dispose()
+
+
+@celery_app.task(name="reports.generate_weekly_digest")
+def generate_weekly_digest_task() -> dict[str, int]:
+    database = Database(settings.database_url)
+    generated = 0
+    try:
+        with database.session_factory() as session:
+            businesses = list(session.scalars(select(Business).order_by(Business.id)))
+            for business in businesses:
+                generate_weekly_digest(
+                    session,
+                    business=business,
+                    correlation_id=f"weekly-digest-{business.id}-{uuid.uuid4()}",
+                )
+                generated += 1
+        return {"businesses_processed": generated}
     finally:
         database.dispose()
