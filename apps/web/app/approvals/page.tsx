@@ -31,10 +31,7 @@ export default function ApprovalsPage() {
               Keputusan yang membutuhkan konfirmasi sebelum dicatat atau dikirim.
             </p>
           </div>
-          <div className="flex items-center gap-2 text-xs text-[#69716c]">
-            <span className="status-dot text-[#2d9169]" />
-            Diperbarui otomatis
-          </div>
+          <p className="text-xs text-[#69716c]">Diperbarui otomatis</p>
         </header>
 
         <section className="app-card mt-7 grid overflow-hidden sm:grid-cols-3">
