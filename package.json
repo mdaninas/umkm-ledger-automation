@@ -17,6 +17,7 @@
     "demo:bank": "docker compose -f infra/docker-compose.yml exec api python -m app.bank_demo",
     "demo:invoices": "docker compose -f infra/docker-compose.yml exec api python -m app.invoice_demo",
     "demo:reports": "docker compose -f infra/docker-compose.yml exec api python -m app.report_demo",
+    "evals:run": "docker compose -f infra/docker-compose.yml exec api python -m app.eval_runner",
     "lint": "pnpm --filter @umkm/web lint && uv run --project apps/api ruff check apps/api",
     "typecheck": "pnpm --filter @umkm/web typecheck && uv run --project apps/api mypy apps/api/app",
     "test": "pnpm --filter @umkm/web test:run && uv run --project apps/api pytest apps/api/tests",

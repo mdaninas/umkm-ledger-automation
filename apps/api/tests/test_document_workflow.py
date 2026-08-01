@@ -231,8 +231,9 @@ def test_invalid_schema_marks_document_failed(
         f"/api/v1/documents/{uploaded['id']}",
         headers={"Authorization": f"Bearer {token}"},
     ).json()
-    assert detail["status"] == "FAILED"
+    assert detail["status"] == "NEEDS_REVIEW"
     assert detail["error_code"] == "AI_SCHEMA_INVALID"
+    assert detail["journal"] is None
     assert detail["journal"] is None
 
 

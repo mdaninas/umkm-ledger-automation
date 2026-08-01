@@ -4,6 +4,8 @@ from functools import lru_cache
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+CHAOS_ALLOWED_ENVIRONMENTS = frozenset({"development", "demo", "test"})
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -54,6 +56,8 @@ class Settings(BaseSettings):
     ai_http_model: str = "finance-document-extractor"
     extraction_prompt_version: str = "finance-inbox-v1"
     extraction_schema_version: str = "document-v1"
+    chaos_mode_enabled: bool = True
+    document_max_retries: int = Field(default=3, ge=0, le=8)
 
     jwt_secret: str = "change-this-local-demo-secret-at-least-32-chars"
     jwt_algorithm: str = "HS256"
@@ -74,6 +78,13 @@ class Settings(BaseSettings):
             and self.jwt_secret == "change-this-local-demo-secret-at-least-32-chars"
         ):
             raise ValueError("JWT_SECRET wajib diganti pada environment production")
+        if (
+            self.chaos_mode_enabled
+            and self.environment.lower() not in CHAOS_ALLOWED_ENVIRONMENTS
+        ):
+            raise ValueError(
+                "CHAOS_MODE_ENABLED hanya boleh true pada development, demo, atau test"
+            )
         return self
 
 

@@ -6,9 +6,11 @@ from sqlalchemy import select
 
 from app.config import get_settings
 from app.database import Database
+from app.eval_service import execute_evaluation_run
 from app.extraction import ExtractionSchemaError, build_extraction_provider
 from app.invoice_service import dispatch_outbox_message, scan_invoices
-from app.models import Business, WorkflowRun, WorkflowStatus
+from app.models import Business
+from app.reliability import schedule_retry
 from app.report_service import generate_weekly_digest
 from app.storage import build_storage
 from app.workflow import process_document
@@ -53,10 +55,25 @@ def ping() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@celery_app.task(name="evals.run")
+def run_evaluation_task(run_id: str) -> dict[str, str]:
+    database = Database(settings.database_url)
+    try:
+        with database.session_factory() as session:
+            run = execute_evaluation_run(
+                session,
+                run_id=uuid.UUID(run_id),
+                settings=settings,
+            )
+            return {"run_id": run_id, "status": run.status.value}
+    finally:
+        database.dispose()
+
+
 @celery_app.task(
     bind=True,
     name="documents.process",
-    max_retries=3,
+    max_retries=None,
 )
 def process_document_task(
     self,  # type: ignore[no-untyped-def]
@@ -82,26 +99,19 @@ def process_document_task(
             return {"document_id": document_id, "status": document.status.value}
     except Exception as exc:
         retry_number = self.request.retries + 1
-        is_dead_letter = retry_number > self.max_retries
         with database.session_factory() as retry_session:
-            run = retry_session.scalar(
-                select(WorkflowRun).where(
-                    WorkflowRun.id == uuid.UUID(workflow_run_id)
-                )
+            _, delay, is_dead_letter = schedule_retry(
+                retry_session,
+                run_id=uuid.UUID(workflow_run_id),
+                retry_number=retry_number,
+                max_retries=settings.document_max_retries,
             )
-            if run:
-                run.retry_count = retry_number
-                run.status = (
-                    WorkflowStatus.DEAD_LETTER
-                    if is_dead_letter
-                    else WorkflowStatus.RETRY_SCHEDULED
-                )
-                retry_session.commit()
         if is_dead_letter:
             raise
         raise self.retry(
             exc=exc,
-            countdown=min(60, 2**retry_number),
+            countdown=delay,
+            max_retries=settings.document_max_retries,
         ) from exc
     finally:
         database.dispose()

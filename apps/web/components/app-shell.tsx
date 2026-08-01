@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Activity,
   FileStack,
+  FlaskConical,
   Landmark,
   LayoutDashboard,
   LoaderCircle,
@@ -80,6 +81,12 @@ const navigation: NavigationItem[] = [
     label: "Approval",
     mobileLabel: "Approval",
     icon: ShieldCheck,
+  },
+  {
+    href: "/reliability",
+    label: "Reliability Lab",
+    mobileLabel: "Lab",
+    icon: FlaskConical,
   },
 ];
 
@@ -273,7 +280,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <LogOut />
             </Button>
           </div>
-          <nav className="grid grid-cols-5 px-1">
+          <nav className="grid grid-cols-6 px-1">
             {navigation.map((item) => {
               const active =
                 pathname === item.href ||

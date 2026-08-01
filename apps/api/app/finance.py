@@ -22,6 +22,13 @@ from app.models import (
 ZERO = Decimal("0.00")
 
 
+def exact_duplicate_detected(
+    candidate_sha256: str,
+    existing_sha256_values: list[str],
+) -> bool:
+    return candidate_sha256 in set(existing_sha256_values)
+
+
 class ValidationIssue(BaseModel):
     code: str
     field: str | None
@@ -150,7 +157,7 @@ def find_duplicate(session: Session, document: Document) -> tuple[Document | Non
         )
         .order_by(Document.created_at)
     )
-    if exact:
+    if exact and exact_duplicate_detected(document.sha256, [exact.sha256]):
         return exact, "EXACT_FILE"
 
     if not all(

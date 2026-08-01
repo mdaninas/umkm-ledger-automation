@@ -165,6 +165,13 @@ class OutboxStatus(StrEnum):
     FAILED = "FAILED"
 
 
+class EvaluationRunStatus(StrEnum):
+    PENDING = "PENDING"
+    RUNNING = "RUNNING"
+    SUCCEEDED = "SUCCEEDED"
+    FAILED = "FAILED"
+
+
 class Business(Base):
     __tablename__ = "businesses"
 
@@ -347,10 +354,20 @@ class Document(Base):
 
 class DocumentExtraction(Base):
     __tablename__ = "document_extractions"
+    __table_args__ = (
+        UniqueConstraint(
+            "document_id",
+            "workflow_run_id",
+            name="uq_document_extraction_workflow_run",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     document_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("documents.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    workflow_run_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("workflow_runs.id", ondelete="CASCADE"), nullable=True, index=True
     )
     provider: Mapped[str] = mapped_column(String(80), nullable=False)
     model: Mapped[str] = mapped_column(String(120), nullable=False)
@@ -396,6 +413,11 @@ class WorkflowRun(Base):
         cascade="all, delete-orphan",
         order_by="WorkflowStep.sequence",
     )
+    attempts: Mapped[list["WorkflowAttempt"]] = relationship(
+        back_populates="workflow_run",
+        cascade="all, delete-orphan",
+        order_by="WorkflowAttempt.attempt_number",
+    )
 
 
 class WorkflowStep(Base):
@@ -420,6 +442,33 @@ class WorkflowStep(Base):
     error_code: Mapped[str | None] = mapped_column(String(80), nullable=True)
 
     workflow_run: Mapped[WorkflowRun] = relationship(back_populates="steps")
+
+
+class WorkflowAttempt(Base):
+    __tablename__ = "workflow_attempts"
+    __table_args__ = (
+        UniqueConstraint(
+            "workflow_run_id", "attempt_number", name="uq_workflow_attempt_number"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    workflow_run_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("workflow_runs.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    attempt_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[WorkflowStatus] = mapped_column(
+        Enum(WorkflowStatus, native_enum=False, length=32), nullable=False
+    )
+    safe_resume_sequence: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    error_code: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    retry_delay_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    workflow_run: Mapped[WorkflowRun] = relationship(back_populates="attempts")
 
 
 class JournalEntry(Base):
@@ -887,3 +936,114 @@ class WeeklyDigest(Base):
     generated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+
+
+class ChaosScenarioState(Base):
+    __tablename__ = "chaos_scenario_states"
+    __table_args__ = (
+        UniqueConstraint(
+            "business_id", "scenario_key", name="uq_chaos_scenario_business_key"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    business_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("businesses.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    scenario_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    trigger_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    last_triggered_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    enabled_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    enabled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+class EvaluationCase(Base):
+    __tablename__ = "evaluation_cases"
+    __table_args__ = (
+        UniqueConstraint(
+            "dataset_version", "case_key", name="uq_evaluation_case_dataset_key"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    dataset_version: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
+    case_key: Mapped[str] = mapped_column(String(100), nullable=False)
+    case_type: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
+    input_payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    expected_output: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    tags: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+
+
+class EvaluationRun(Base):
+    __tablename__ = "evaluation_runs"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    business_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("businesses.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    dataset_version: Mapped[str] = mapped_column(String(40), nullable=False)
+    provider: Mapped[str] = mapped_column(String(80), nullable=False)
+    model: Mapped[str] = mapped_column(String(120), nullable=False)
+    prompt_version: Mapped[str] = mapped_column(String(40), nullable=False)
+    status: Mapped[EvaluationRunStatus] = mapped_column(
+        Enum(EvaluationRunStatus, native_enum=False, length=24),
+        nullable=False,
+        default=EvaluationRunStatus.PENDING,
+        index=True,
+    )
+    summary: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    correlation_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    results: Mapped[list["EvaluationResult"]] = relationship(
+        back_populates="evaluation_run",
+        cascade="all, delete-orphan",
+        order_by="EvaluationResult.created_at",
+    )
+
+
+class EvaluationResult(Base):
+    __tablename__ = "evaluation_results"
+    __table_args__ = (
+        UniqueConstraint(
+            "evaluation_run_id", "evaluation_case_id", name="uq_evaluation_result_run_case"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    evaluation_run_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("evaluation_runs.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    evaluation_case_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("evaluation_cases.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    actual_output: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    scores: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    passed: Mapped[bool] = mapped_column(Boolean, nullable=False, index=True)
+    latency_ms: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    usage: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    error_code: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    evaluation_run: Mapped[EvaluationRun] = relationship(back_populates="results")
+    evaluation_case: Mapped[EvaluationCase] = relationship()

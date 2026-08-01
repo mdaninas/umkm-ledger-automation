@@ -11,6 +11,7 @@ COPY apps/api/pyproject.toml apps/api/uv.lock* ./
 RUN uv sync --frozen --no-dev
 
 COPY apps/api/app ./app
+COPY evals ./evals
 
 RUN addgroup --system app \
     && adduser --system --ingroup app --no-create-home app

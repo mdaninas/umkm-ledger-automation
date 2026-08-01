@@ -31,6 +31,7 @@ from app.models import (
     Reconciliation,
     ReconciliationStatus,
 )
+from app.reliability import trigger_chaos
 from app.security import AuthContext
 
 ZERO = Decimal("0.00")
@@ -93,6 +94,13 @@ def import_bank_csv(
     if existing_import is not None:
         return existing_import, True
 
+    inject_malformed_row = trigger_chaos(
+        session,
+        business_id=context.business_id,
+        scenario_key="CSV_ROW_CORRUPTION",
+        settings=settings,
+    )
+
     rows, headers = _read_csv(content)
     _validate_mapping_headers(mapping, headers)
     bank_import = BankImport(
@@ -124,6 +132,15 @@ def import_bank_csv(
     duplicate_count = 0
 
     for row_number, row in enumerate(rows, start=2):
+        if inject_malformed_row and row_number == 2:
+            row_errors.append(
+                {
+                    "row": row_number,
+                    "code": "CHAOS_ROW_INVALID",
+                    "message": "Chaos Mode simulated one malformed CSV row.",
+                }
+            )
+            continue
         try:
             parsed = _parse_row(row_number, row, mapping)
         except BankImportValidationError as exc:

@@ -42,6 +42,81 @@ export interface HealthResponse {
   components: Record<string, HealthComponent>;
 }
 
+export interface ChaosScenario {
+  key: string;
+  name: string;
+  description: string;
+  recovery: string;
+  available: boolean;
+  enabled: boolean;
+  trigger_count: number;
+  last_triggered_at: string | null;
+}
+
+export interface WorkflowReplay {
+  id: string;
+  workflow_type: string;
+  entity_type: string;
+  entity_id: string;
+  status: string;
+  correlation_id: string;
+  retry_count: number;
+  error_code: string | null;
+  safe_error: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  duration_ms: number | null;
+  steps: Array<{
+    id: string;
+    sequence: number;
+    name: string;
+    status: string;
+    output: Record<string, unknown>;
+    error_code: string | null;
+    started_at: string | null;
+    finished_at: string | null;
+    duration_ms: number | null;
+  }>;
+  attempts: Array<{
+    id: string;
+    number: number;
+    status: string;
+    safe_resume_sequence: number;
+    error_code: string | null;
+    retry_delay_seconds: number | null;
+    duration_ms: number | null;
+  }>;
+  decisions: Array<{
+    id: string;
+    action: string;
+    metadata: Record<string, unknown>;
+    created_at: string;
+  }>;
+}
+
+export interface EvaluationRun {
+  id: string;
+  dataset_version: string;
+  provider: string;
+  model: string;
+  prompt_version: string;
+  status: string;
+  summary: {
+    case_count?: number;
+    passed_count?: number;
+    failed_count?: number;
+    pass_rate_pct?: number;
+    metrics?: Record<string, number>;
+    target_passed?: boolean;
+    average_latency_ms?: number;
+    estimated_cost_usd?: number;
+    source?: string;
+  };
+  started_at: string | null;
+  finished_at: string | null;
+  created_at: string;
+}
+
 export type DocumentStatus =
   | "UPLOADED"
   | "QUEUED"
@@ -768,6 +843,61 @@ export function runWeeklyDigest(
       method: "POST",
       body: JSON.stringify({ period_end: periodEnd || null }),
     },
+    token,
+  );
+}
+
+export function getChaosScenarios(token: string): Promise<{
+  environment: string;
+  demo_only: boolean;
+  items: ChaosScenario[];
+}> {
+  return apiRequest("/api/v1/demo/chaos-scenarios", {}, token);
+}
+
+export function setChaosScenario(
+  token: string,
+  key: string,
+  enabled: boolean,
+): Promise<{ items: ChaosScenario[] }> {
+  return apiRequest(
+    `/api/v1/demo/chaos-scenarios/${key}/${enabled ? "enable" : "disable"}`,
+    { method: "POST" },
+    token,
+  );
+}
+
+export function getWorkflowReplays(token: string): Promise<{
+  items: WorkflowReplay[];
+  dead_letter_count: number;
+}> {
+  return apiRequest("/api/v1/workflows", {}, token);
+}
+
+export function recoverWorkflow(
+  token: string,
+  runId: string,
+): Promise<{ workflow_run_id: string; status: string; resume_sequence: number }> {
+  return apiRequest(
+    `/api/v1/workflows/${runId}/recover`,
+    { method: "POST" },
+    token,
+  );
+}
+
+export function getEvaluationRuns(token: string): Promise<{
+  items: EvaluationRun[];
+}> {
+  return apiRequest("/api/v1/evals/runs", {}, token);
+}
+
+export function startEvaluationRun(
+  token: string,
+  payload: { model?: string; prompt_version?: string } = {},
+): Promise<EvaluationRun> {
+  return apiRequest(
+    "/api/v1/evals/runs",
+    { method: "POST", body: JSON.stringify(payload) },
     token,
   );
 }

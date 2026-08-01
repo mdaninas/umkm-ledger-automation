@@ -13,6 +13,7 @@ RUN uv sync --frozen --no-dev
 COPY apps/api/alembic.ini ./alembic.ini
 COPY apps/api/alembic ./alembic
 COPY apps/api/app ./app
+COPY evals ./evals
 
 RUN addgroup --system app \
     && adduser --system --ingroup app --no-create-home app

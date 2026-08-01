@@ -47,6 +47,14 @@ journal, and is posted only after human review.
   explicit AI usage cost, and bank-match coverage.
 - Generates an idempotent weekly finance digest and exports the filtered ledger
   evidence as UTF-8 CSV.
+- Replays every workflow step, retry, duration, and decision from persisted
+  execution data.
+- Provides a development-only Chaos Mode for timeout, invalid schema, storage,
+  malformed CSV, worker interruption, and prompt-injection scenarios.
+- Recovers failed and dead-letter workflows from the last safe step without
+  duplicating files, journals, approvals, or messages.
+- Runs a versioned 100-case golden evaluation suite and compares prompt/model
+  runs by extraction, categorization, reconciliation, safety, latency, and cost.
 - Enforces tenant scope and database-backed roles on every protected request.
 
 Draft journals are deliberately excluded from posted income, expenses, cash, and
@@ -173,6 +181,37 @@ transactions divided by all imported transactions in the period. AI cost is
 reported only when a provider records an explicit IDR estimate—it is never
 inferred.
 
+### Reliability walkthrough
+
+Open **Reliability Lab** and run this controlled sequence:
+
+1. Open **Chaos Mode**, enable **AI timeout**, then upload a document. Inspect
+   its retry delay and safe error in **Workflow replay**.
+2. Disable the timeout, enable **Invalid AI response**, and upload another
+   document. Confirm it enters review without creating a journal.
+3. Enable **Worker interruption** and upload a document. Disable the scenario,
+   choose **Pulihkan**, and verify that replay resumes after extraction.
+4. Run the golden evaluation twice. **Evaluasi AI** compares the latest prompt
+   versions across exact fields, categorization, reconciliation, duplicate
+   prevention, manual review, latency, and explicit cost.
+5. Inspect the source label below the chart and the version metadata on each
+   run. Evaluation results remain tenant-scoped and persisted for audit.
+
+Chaos Mode is restricted to demo, development, and test environments. The API
+rejects it in production, only an owner can change a scenario or recover a
+workflow, and only one scenario can be active at a time.
+
+The same golden suite is runnable without the web interface:
+
+```powershell
+pnpm evals:run
+```
+
+The command evaluates 50 clean documents, 20 reconciliation cases, 10 exact
+duplicates, 10 blurry or incomplete documents, and 10 adversarial prompt
+injection cases. It exits unsuccessfully if the configured safety and quality
+targets are not met.
+
 ### Local services
 
 - Web application: http://localhost:3000
@@ -235,7 +274,9 @@ rejection of unbalanced journals, draft exclusion, bank row validation,
 deterministic reconciliation scoring, match uniqueness, audit events, and
 idempotent document, journal, bank imports, reminder approval, cooldown, fallback
 copy, duplicate-safe email delivery, ledger-to-dashboard reconciliation,
-filtered report export, and weekly digest generation.
+filtered report export, weekly digest generation, retry/dead-letter policy,
+safe workflow recovery, Chaos Mode isolation, prompt-injection resistance, and
+persisted golden-run comparison.
 
 Useful individual commands:
 
@@ -247,6 +288,7 @@ pnpm build
 pnpm api:migrate
 pnpm api:seed
 pnpm api:dev
+pnpm evals:run
 ```
 
 When the API runs outside Compose, point `DATABASE_URL`, Redis, and MinIO to
@@ -297,7 +339,8 @@ docs/
 - Production schema changes use Alembic migrations.
 
 See [docs/architecture.md](./docs/architecture.md) for the system flow and trust
-boundaries.
+boundaries, and [docs/reliability.md](./docs/reliability.md) for retry, recovery,
+Chaos Mode, and evaluation controls.
 
 ## Product boundaries
 

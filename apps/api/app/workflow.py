@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.audit import record_audit_event
 from app.config import Settings
 from app.extraction import (
+    ExtractionPayload,
     ExtractionProvider,
     ExtractionResult,
     ExtractionSchemaError,
@@ -27,11 +28,19 @@ from app.models import (
     Document,
     DocumentExtraction,
     DocumentStatus,
+    JournalEntry,
     RiskLevel,
     StepStatus,
+    WorkflowAttempt,
     WorkflowRun,
     WorkflowStatus,
     WorkflowStep,
+)
+from app.reliability import (
+    ReliabilityFault,
+    begin_attempt,
+    finish_attempt,
+    trigger_chaos,
 )
 from app.storage import ObjectStorage
 
@@ -81,13 +90,18 @@ def process_document(
     settings: Settings,
     workflow_run_id: uuid.UUID | None = None,
 ) -> Document:
-    document = session.scalar(
-        select(Document).where(Document.id == document_id).with_for_update()
-    )
+    document = session.scalar(select(Document).where(Document.id == document_id).with_for_update())
     if document is None:
         raise ValueError("Document does not exist.")
 
     run = _get_workflow_run(session, document, workflow_run_id)
+    if run.status in {
+        WorkflowStatus.RUNNING,
+        WorkflowStatus.WAITING_FOR_APPROVAL,
+        WorkflowStatus.SUCCEEDED,
+    }:
+        return document
+    attempt = begin_attempt(session, run)
     run.status = WorkflowStatus.RUNNING
     run.started_at = datetime.now(UTC)
     document.status = DocumentStatus.EXTRACTING
@@ -101,12 +115,60 @@ def process_document(
     session.commit()
 
     try:
-        result = _extract(session, document, run, storage, provider)
-        session.commit()
-        _validate(session, document, run, result, settings)
-        session.commit()
+        extraction_step = next(step for step in run.steps if step.sequence == 1)
+        if extraction_step.status == StepStatus.SUCCEEDED:
+            result = _saved_extraction_result(session, document)
+        else:
+            if trigger_chaos(
+                session,
+                business_id=document.business_id,
+                scenario_key="STORAGE_OUTAGE",
+                settings=settings,
+            ):
+                raise ReliabilityFault("STORAGE_TEMPORARILY_UNAVAILABLE")
+            if trigger_chaos(
+                session,
+                business_id=document.business_id,
+                scenario_key="AI_TIMEOUT",
+                settings=settings,
+            ):
+                raise ReliabilityFault("AI_PROVIDER_TIMEOUT")
+            if trigger_chaos(
+                session,
+                business_id=document.business_id,
+                scenario_key="INVALID_JSON",
+                settings=settings,
+            ):
+                raise ExtractionSchemaError("Chaos Mode returned invalid JSON.")
+            result = _extract(session, document, run, storage, provider)
+            if trigger_chaos(
+                session,
+                business_id=document.business_id,
+                scenario_key="PROMPT_INJECTION_PROBE",
+                settings=settings,
+            ):
+                result.payload.warnings.append("Potential prompt injection text was ignored.")
+            session.commit()
 
-        duplicate, reason = _detect_duplicate(session, document, run)
+        if trigger_chaos(
+            session,
+            business_id=document.business_id,
+            scenario_key="WORKER_AFTER_EXTRACTION",
+            settings=settings,
+        ):
+            raise ReliabilityFault("WORKER_INTERRUPTED")
+
+        validation_step = next(step for step in run.steps if step.sequence == 2)
+        if validation_step.status != StepStatus.SUCCEEDED:
+            _validate(session, document, run, result, settings)
+            session.commit()
+
+        duplicate_step = next(step for step in run.steps if step.sequence == 3)
+        if duplicate_step.status == StepStatus.SUCCEEDED:
+            duplicate = session.get(Document, document.duplicate_of_id)
+            reason = document.duplicate_reason
+        else:
+            duplicate, reason = _detect_duplicate(session, document, run)
         if duplicate:
             document.duplicate_of_id = duplicate.id
             document.duplicate_reason = reason
@@ -114,6 +176,7 @@ def process_document(
             document.review_reason = "A possible duplicate needs a human decision."
             _skip_remaining_steps(run, from_sequence=4, reason="duplicate_requires_review")
             run.status = WorkflowStatus.WAITING_FOR_APPROVAL
+            finish_attempt(attempt, status=WorkflowStatus.WAITING_FOR_APPROVAL)
             _audit(
                 session,
                 document,
@@ -129,6 +192,7 @@ def process_document(
             document.review_reason = "Validation errors must be corrected."
             _skip_remaining_steps(run, from_sequence=4, reason="validation_errors")
             run.status = WorkflowStatus.WAITING_FOR_APPROVAL
+            finish_attempt(attempt, status=WorkflowStatus.WAITING_FOR_APPROVAL)
             _audit(
                 session,
                 document,
@@ -139,11 +203,25 @@ def process_document(
             session.commit()
             return document
 
-        journal = _categorize_and_draft(session, document, run, result)
-        _request_approval(session, document, run, journal.id)
+        journal_step = next(step for step in run.steps if step.sequence == 5)
+        if journal_step.status == StepStatus.SUCCEEDED:
+            journal = session.scalar(
+                select(JournalEntry).where(
+                    JournalEntry.business_id == document.business_id,
+                    JournalEntry.document_id == document.id,
+                )
+            )
+            if journal is None:
+                raise ReliabilityFault("SAVED_JOURNAL_MISSING", retryable=False)
+        else:
+            journal = _categorize_and_draft(session, document, run, result)
+        approval_step = next(step for step in run.steps if step.sequence == 6)
+        if approval_step.status != StepStatus.SUCCEEDED:
+            _request_approval(session, document, run, journal.id)
         document.status = DocumentStatus.NEEDS_REVIEW
         document.review_reason = "Review the extraction and draft journal before posting."
         run.status = WorkflowStatus.WAITING_FOR_APPROVAL
+        finish_attempt(attempt, status=WorkflowStatus.WAITING_FOR_APPROVAL)
         _audit(
             session,
             document,
@@ -155,12 +233,42 @@ def process_document(
         return document
     except ExtractionSchemaError:
         session.rollback()
-        _mark_failed(session, document_id, run.id, "AI_SCHEMA_INVALID")
+        _mark_failed(
+            session,
+            document_id,
+            run.id,
+            "AI_SCHEMA_INVALID",
+            needs_review=True,
+        )
+        raise
+    except ReliabilityFault as exc:
+        session.rollback()
+        _mark_failed(session, document_id, run.id, exc.error_code)
         raise
     except Exception:
         session.rollback()
         _mark_failed(session, document_id, run.id, "DOCUMENT_PROCESSING_FAILED")
         raise
+
+
+def _saved_extraction_result(session: Session, document: Document) -> ExtractionResult:
+    extraction = session.scalar(
+        select(DocumentExtraction)
+        .where(DocumentExtraction.document_id == document.id)
+        .order_by(DocumentExtraction.created_at.desc())
+    )
+    if extraction is None:
+        raise ReliabilityFault("SAVED_EXTRACTION_MISSING", retryable=False)
+    return ExtractionResult(
+        payload=ExtractionPayload.model_validate(extraction.normalized_output),
+        provider=extraction.provider,
+        model=extraction.model,
+        prompt_version=extraction.prompt_version,
+        schema_version=extraction.schema_version,
+        raw_output=extraction.raw_structured_output,
+        latency_ms=extraction.latency_ms,
+        usage=extraction.usage,
+    )
 
 
 def _get_workflow_run(
@@ -206,6 +314,7 @@ def _extract(
     session.add(
         DocumentExtraction(
             document_id=document.id,
+            workflow_run_id=run.id,
             provider=result.provider,
             model=result.model,
             prompt_version=result.prompt_version,
@@ -386,6 +495,8 @@ def _mark_failed(
     document_id: uuid.UUID,
     workflow_run_id: uuid.UUID,
     error_code: str,
+    *,
+    needs_review: bool = False,
 ) -> None:
     document = session.get(Document, document_id)
     run = session.scalar(
@@ -395,8 +506,12 @@ def _mark_failed(
     )
     if document is None or run is None:
         return
-    document.status = DocumentStatus.FAILED
+    document.status = DocumentStatus.NEEDS_REVIEW if needs_review else DocumentStatus.FAILED
     document.error_code = error_code
+    if needs_review:
+        document.review_reason = (
+            "The extraction response was invalid. Review the document before retrying."
+        )
     run.status = WorkflowStatus.FAILED
     run.error_code = error_code
     run.finished_at = datetime.now(UTC)
@@ -408,6 +523,17 @@ def _mark_failed(
         running_step.status = StepStatus.FAILED
         running_step.error_code = error_code
         running_step.finished_at = datetime.now(UTC)
+    latest_attempt = session.scalar(
+        select(WorkflowAttempt)
+        .where(WorkflowAttempt.workflow_run_id == run.id)
+        .order_by(WorkflowAttempt.attempt_number.desc())
+    )
+    if latest_attempt:
+        finish_attempt(
+            latest_attempt,
+            status=WorkflowStatus.FAILED,
+            error_code=error_code,
+        )
     _audit(session, document, run, "document.processing.failed", {"error_code": error_code})
     session.commit()
 
